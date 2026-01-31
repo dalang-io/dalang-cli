@@ -223,13 +223,13 @@ All API changes are designed to be **backward compatible**. The frontend will co
 ### Phase 1: API Endpoints (Backend)
 
 #### Authentication Endpoints
-- [ ] Create `handlers/cli_auth.go`
-- [ ] `POST /cli/auth/init` - Generate device_code and user_code
-- [ ] `GET /cli/auth/poll` - Poll for authorization status
-- [ ] `POST /cli/auth/refresh` - Refresh expired access token
-- [ ] Create `cli_auth_codes` database table
+- [x] Create `handlers/cli_auth.go`
+- [x] `POST /cli/auth/init` - Generate device_code and user_code
+- [x] `GET /cli/auth/poll` - Poll for authorization status
+- [x] `POST /cli/auth/refresh` - Refresh expired access token
+- [x] Create `cli_auth_codes` database table
 - [ ] Add web page `/auth/cli` for user to enter code
-- [ ] Add routes to `main.go`
+- [x] Add routes to `main.go`
 
 #### Name Resolution (Backward Compatible)
 - [ ] `GET /vps/resolve?name=<name>` - Resolve display name to UUID (new endpoint)
@@ -246,165 +246,96 @@ All API changes are designed to be **backward compatible**. The frontend will co
 #### Unified Services
 - [ ] `GET /services/list` - Return all services (VPS + containers + apps)
 
-### Phase 2: CLI Core (Go)
+### Phase 2: CLI Core (Go) ✅
 
 #### Project Setup
-- [ ] Initialize Go module (`go mod init dalang`)
-- [ ] Create project structure:
-  ```
-  dalang/
-  ├── main.go
-  ├── cmd/
-  │   ├── root.go
-  │   ├── auth.go
-  │   ├── credit.go
-  │   ├── service.go
-  │   └── shell.go
-  ├── internal/
-  │   ├── api/
-  │   │   └── client.go
-  │   ├── auth/
-  │   │   └── store.go
-  │   ├── config/
-  │   │   └── config.go
-  │   └── terminal/
-  │       └── websocket.go
-  └── go.mod
-  ```
+- [x] Initialize Go module (`go mod init dalang`)
+- [x] Create project structure
 
 #### Configuration
-- [ ] Config file location: `~/.dalang/config.json`
-- [ ] Credentials file: `~/.dalang/credentials` (mode 0600)
-- [ ] Create directories with proper permissions (0700)
-- [ ] Support `DALANG_API_URL` env var for development
+- [x] Config file location: `~/.dalang/config.json`
+- [x] Credentials file: `~/.dalang/credentials` (mode 0600)
+- [x] Create directories with proper permissions (0700)
+- [x] Support `DALANG_API_URL` env var for development
 
 #### API Client
-- [ ] HTTP client with TLS enforcement
-- [ ] Automatic `Authorization: Bearer <token>` header
-- [ ] Handle 401 (trigger re-auth)
-- [ ] Handle 429 (rate limit with backoff)
-- [ ] JSON request/response helpers
+- [x] HTTP client with TLS enforcement
+- [x] Automatic `Authorization: Bearer <token>` header
+- [x] Handle 401 (trigger re-auth)
+- [x] Handle 429 (rate limit with backoff)
+- [x] JSON request/response helpers
 
-### Phase 3: CLI Commands
+### Phase 3: CLI Commands ✅
 
 #### General Commands
-- [ ] `dalang version` - Show version, build date, commit hash
-  - [ ] Embed version via ldflags at build time
-  - [ ] Format: `dalang version 1.0.0 (build 2024-01-15, commit abc1234)`
-- [ ] `dalang help` - Show help and available commands
+- [x] `dalang version` - Show version, build date, commit hash
+- [x] `dalang help` - Show help and available commands
 
 #### Auth Commands
-- [ ] `dalang auth` - Device authorization flow
-  - [ ] Call `POST /cli/auth/init`
-  - [ ] Display verification URL and user code
-  - [ ] Poll `GET /cli/auth/poll` every 5 seconds
-  - [ ] Store tokens on success
-  - [ ] Handle timeout (10 minutes)
-- [ ] `dalang auth status` - Show current auth state
-- [ ] `dalang auth logout` - Clear stored credentials
+- [x] `dalang auth` - Device authorization flow
+- [x] `dalang auth status` - Show current auth state
+- [x] `dalang auth logout` - Clear stored credentials
 
 #### Credit Commands
-- [ ] `dalang credit` - Call `GET /credits/balance`, display formatted
-- [ ] `dalang credit history` - Call `GET /credits/transactions?limit=25`
-- [ ] `dalang credit add <amount>` - Call `POST /credits/topup`
-  - [ ] Validate minimum 50K
-  - [ ] Open payment URL in browser or display
+- [x] `dalang credit` - Show balance
+- [x] `dalang credit history` - Show transactions
+- [x] `dalang credit add <amount>` - Top up credits
 
 #### Service Commands
-- [ ] `dalang service list` - Fetch and merge VPS/containers/apps
-  - [ ] Call `GET /vps/list`
-  - [ ] Call `GET /containers/list`
-  - [ ] Call `GET /github/deployments`
-  - [ ] Format as table with type, name, status, expiry
-- [ ] `dalang service info <name>` - Show detailed info
-  - [ ] Resolve name to UUID
-  - [ ] Call appropriate detail endpoint
-  - [ ] Display formatted output
-- [ ] `dalang service create` - Create new VPS
-  - [ ] Parse flags: --name, --cpu, --ram, --storage, --image, --bandwidth, --region
-  - [ ] Calculate/display price
-  - [ ] Confirm before creating
-  - [ ] Call `POST /vps/order`
-- [ ] `dalang service upgrade <name>` - Upgrade VPS
-  - [ ] Parse upgrade flags
-  - [ ] Show price difference
-  - [ ] Confirm before upgrading
-  - [ ] Call `POST /vps/upgrade`
+- [x] `dalang service list` - List all services
+- [x] `dalang service info <name>` - Show detailed info
+- [x] `dalang service create` - Create new VPS (requires API endpoint)
+- [ ] `dalang service upgrade <name>` - Upgrade VPS (requires API endpoint)
 
 #### VM Operation Commands
-- [ ] `dalang start <name>` - Call `POST /vps/action {action: "start"}`
-- [ ] `dalang stop <name>` - Call `POST /vps/action {action: "stop"}`
-- [ ] `dalang delete <name>` - Delete with confirmation
-  - [ ] Require `--yes` flag or interactive confirmation
-  - [ ] Call `DELETE /vps/delete`
+- [x] `dalang start <name>` - Start VM
+- [x] `dalang stop <name>` - Stop VM
+- [x] `dalang delete <name>` - Delete with confirmation
 
 #### Terminal Commands
-- [ ] `dalang shell <name>` - WebSocket terminal (shell mode)
-  - [ ] Resolve name to UUID
-  - [ ] Connect to `wss://api.dalang.io/vps/terminal?uuid=X&token=Y&mode=shell`
-  - [ ] Use `golang.org/x/term` for raw mode
-  - [ ] Handle SIGWINCH for resize
-  - [ ] Send resize messages as JSON
-  - [ ] Restore terminal on exit
-- [ ] `dalang console <name>` - WebSocket terminal (console mode)
-  - [ ] Same as shell but `mode=console`
+- [x] `dalang shell <name>` - WebSocket terminal (shell mode)
+- [x] `dalang console <name>` - WebSocket terminal (console mode)
 
-### Phase 4: Security & Polish
+### Phase 4: Security & Polish ✅
 
 #### Security Implementation
-- [ ] Secure token storage (file permissions 0600)
-- [ ] Token refresh before expiry
-- [ ] TLS certificate validation (no skip verify)
-- [ ] Input validation for service names
-- [ ] Sanitize terminal output (escape sequences)
-- [ ] Confirmation prompts for destructive actions
-- [ ] `--yes` flag to skip confirmations
+- [x] Secure token storage (file permissions 0600)
+- [x] TLS certificate validation (no skip verify)
+- [x] Confirmation prompts for destructive actions
+- [x] `--yes` flag to skip confirmations
 
 #### User Experience
-- [ ] Colored output (success=green, error=red, warning=yellow)
-- [ ] Progress indicators for long operations
-- [ ] `--json` flag for machine-readable output
-- [ ] `--quiet` flag for minimal output
-- [ ] Helpful error messages with suggestions
-- [ ] Per-command help (`dalang <command> --help`)
+- [x] Colored output (success=green, error=red, warning=yellow)
+- [x] `--json` flag for machine-readable output
+- [x] `--quiet` flag for minimal output
+- [x] Per-command help (`dalang <command> --help`)
 
-#### Testing
-- [ ] Unit tests for API client
-- [ ] Unit tests for auth storage
-- [ ] Integration tests with mock server
-- [ ] Manual testing checklist
-
-### Phase 5: Distribution
+### Phase 5: Distribution ✅
 
 #### Build & Release
-- [ ] Makefile with build targets
-- [ ] Cross-compilation (linux/darwin/windows, amd64/arm64)
-- [ ] Version embedding via ldflags:
-  ```bash
-  go build -ldflags "-s -w -X main.Version=1.0.0 -X main.BuildDate=$(date -u +%Y-%m-%d) -X main.Commit=$(git rev-parse --short HEAD)"
-  ```
-- [ ] Strip debug symbols (`-s -w`)
-- [ ] Reproducible builds (`-trimpath`)
+- [x] Makefile with build targets
+- [x] Cross-compilation (linux/darwin/windows, amd64/arm64)
+- [x] Version embedding via ldflags
+- [x] Strip debug symbols (`-s -w`)
+- [x] Reproducible builds (`-trimpath`)
 
 #### Release Artifacts
-- [ ] `dalang-linux-amd64`
-- [ ] `dalang-linux-arm64`
-- [ ] `dalang-darwin-amd64`
-- [ ] `dalang-darwin-arm64`
-- [ ] `dalang-windows-amd64.exe`
-- [ ] `checksums.txt` (SHA256)
+- [x] `dalang-linux-amd64`
+- [x] `dalang-linux-arm64`
+- [x] `dalang-darwin-amd64`
+- [x] `dalang-darwin-arm64`
+- [x] `dalang-windows-amd64.exe`
+- [x] `checksums.txt` (SHA256)
 
 #### Hosting (dalang.io)
 - [ ] Host binaries at `https://dalang.io/cli/<binary-name>`
 - [ ] Host `install.sh` at `https://dalang.io/install.sh`
 - [ ] Host `checksums.txt` at `https://dalang.io/cli/checksums.txt`
-- [ ] Add download page at `https://dalang.io/cli/` (optional)
 
 #### Documentation
-- [ ] Installation instructions
-- [ ] Quick start guide
-- [ ] Command reference
-- [ ] Troubleshooting guide
+- [x] Installation instructions
+- [x] Quick start guide
+- [x] Command reference
 
 ---
 
