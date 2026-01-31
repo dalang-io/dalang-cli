@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dalang-io/dalang-cli/internal/api"
 )
@@ -224,6 +225,42 @@ func formatDate(isoDate string) string {
 		return isoDate[:10]
 	}
 	return isoDate
+}
+
+func formatExpiryWithDays(isoDate string) string {
+	if isoDate == "" {
+		return "N/A"
+	}
+
+	// Parse the date
+	t, err := time.Parse("2006-01-02T15:04:05Z", isoDate)
+	if err != nil {
+		// Try alternative format
+		t, err = time.Parse("2006-01-02 15:04:05", isoDate)
+		if err != nil {
+			t, err = time.Parse("2006-01-02", isoDate)
+			if err != nil {
+				return formatDate(isoDate)
+			}
+		}
+	}
+
+	now := time.Now()
+	days := int(t.Sub(now).Hours() / 24)
+
+	dateStr := t.Format("2006-01-02")
+
+	if days < 0 {
+		return fmt.Sprintf("%s (%sexpired%s)", dateStr, colorRed, colorReset)
+	} else if days == 0 {
+		return fmt.Sprintf("%s (%stoday%s)", dateStr, colorYellow, colorReset)
+	} else if days == 1 {
+		return fmt.Sprintf("%s (%s1 day left%s)", dateStr, colorYellow, colorReset)
+	} else if days <= 7 {
+		return fmt.Sprintf("%s (%s%d days left%s)", dateStr, colorYellow, days, colorReset)
+	} else {
+		return fmt.Sprintf("%s (%d days left)", dateStr, days)
+	}
 }
 
 func printCreditHelp() {

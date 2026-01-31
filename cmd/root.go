@@ -102,6 +102,8 @@ func Execute() error {
 		return cmdStop(cmdArgs)
 	case "delete":
 		return cmdDelete(cmdArgs)
+	case "domain", "domains":
+		return cmdDomain(cmdArgs)
 	default:
 		printError("Unknown command: %s", command)
 		fmt.Println("\nRun 'dalang help' for usage.")
@@ -144,6 +146,7 @@ func printHelp() {
     %sstart%s <name>         Start a VM
     %sstop%s <name>          Stop a VM
     %sdelete%s <name>        Delete a VM
+    %sdomain%s               Manage custom domains
 
 %sGLOBAL OPTIONS:%s
     --json               Output in JSON format
@@ -163,6 +166,7 @@ Run '%sdalang <command> --help%s' for more information on a command.
 		colorBold, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
+		colorCyan, colorReset,
 		colorCyan, colorReset,
 		colorCyan, colorReset,
 		colorCyan, colorReset,
@@ -196,6 +200,8 @@ func cmdHelpFor(command string) error {
 		printStopHelp()
 	case "delete":
 		printDeleteHelp()
+	case "domain", "domains":
+		printDomainHelp()
 	default:
 		printError("Unknown command: %s", command)
 		return fmt.Errorf("unknown command: %s", command)

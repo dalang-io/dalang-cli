@@ -254,21 +254,24 @@ type VPSListResponse struct {
 
 // VPS represents a VPS instance
 type VPS struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	Status      string `json:"status"`
-	VCPU        int    `json:"vcpu"`
-	RAM         int    `json:"ram"`
-	Storage     int    `json:"storage"`
-	StorageType string `json:"storage_type"`
-	Bandwidth   int    `json:"bandwidth"`
-	Price       int    `json:"price"`
-	ExpiresAt   string `json:"expires_at"`
-	Region      string `json:"region"`
-	Image       string `json:"image"`
-	PublicIP    string `json:"public_ip"`
-	LocalIP     string `json:"local_ip"`
+	ID                  string `json:"id"`
+	Name                string `json:"name"`
+	DisplayName         string `json:"display_name"`
+	Status              string `json:"status"`
+	VCPU                int    `json:"vcpu"`
+	RAM                 int    `json:"ram"`
+	Storage             int    `json:"storage"`
+	StorageType         string `json:"storage_type"`
+	Bandwidth           int    `json:"bandwidth"`
+	Price               int    `json:"price"`
+	ExpiresAt           string `json:"expires_at"`
+	Region              string `json:"region"`
+	Image               string `json:"image"`
+	PublicIP            string `json:"public_ip"`
+	LocalIP             string `json:"local_ip"`
+	Domain              string `json:"domain"`
+	CustomDomainEnabled int    `json:"custom_domain_enabled"`
+	CustomDomainPrice   int    `json:"custom_domain_price"`
 }
 
 // ContainerListResponse represents container list

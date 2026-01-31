@@ -254,12 +254,32 @@ func serviceInfo(name string) error {
 	fmt.Printf("    Bandwidth: %d Mbps\n", foundVPS.Bandwidth)
 	fmt.Println()
 	fmt.Printf("  %sNetwork:%s\n", colorBold, colorReset)
-	fmt.Printf("    Public IP: %s%s%s\n", colorCyan, foundVPS.PublicIP, colorReset)
-	fmt.Printf("    Local IP:  %s\n", foundVPS.LocalIP)
+	publicIP := foundVPS.PublicIP
+	if publicIP == "" {
+		publicIP = "N/A"
+	}
+	localIP := foundVPS.LocalIP
+	if localIP == "" {
+		localIP = "N/A"
+	}
+	fmt.Printf("    Public IP: %s%s%s\n", colorCyan, publicIP, colorReset)
+	fmt.Printf("    Local IP:  %s\n", localIP)
+	fmt.Println()
+	fmt.Printf("  %sDomains:%s\n", colorBold, colorReset)
+	if foundVPS.Domain != "" {
+		fmt.Printf("    Public:    %s%s%s (free)\n", colorCyan, foundVPS.Domain, colorReset)
+	}
+	if foundVPS.CustomDomainEnabled == 1 {
+		fmt.Printf("    Custom:    %s%s%s (+%s/month)\n", colorGreen, "Enabled", colorReset, formatIDR(int64(foundVPS.CustomDomainPrice)))
+		fmt.Printf("               Run '%sdalang domain list %s%s' to see custom domains\n", colorCyan, name, colorReset)
+	} else {
+		fmt.Printf("    Custom:    %sDisabled%s\n", colorYellow, colorReset)
+		fmt.Printf("               Run '%sdalang domain enable %s%s' to activate (+%s/month)\n", colorCyan, name, colorReset, formatIDR(int64(foundVPS.CustomDomainPrice)))
+	}
 	fmt.Println()
 	fmt.Printf("  %sSubscription:%s\n", colorBold, colorReset)
 	fmt.Printf("    Price:     %s/month\n", formatIDR(int64(foundVPS.Price)))
-	fmt.Printf("    Expires:   %s\n", formatDate(foundVPS.ExpiresAt))
+	fmt.Printf("    Expires:   %s\n", formatExpiryWithDays(foundVPS.ExpiresAt))
 	fmt.Println()
 
 	return nil
