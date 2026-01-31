@@ -228,7 +228,7 @@ All API changes are designed to be **backward compatible**. The frontend will co
 - [x] `GET /cli/auth/poll` - Poll for authorization status
 - [x] `POST /cli/auth/refresh` - Refresh expired access token
 - [x] Create `cli_auth_codes` database table
-- [ ] Add web page `/auth/cli` for user to enter code
+- [x] Add web page `/auth/cli` for user to enter code
 - [x] Add routes to `main.go`
 
 #### Name Resolution (Backward Compatible)

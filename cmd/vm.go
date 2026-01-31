@@ -154,7 +154,7 @@ func resolveVPSName(client *api.Client, name string) (string, string, error) {
 		return "", "", fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	for _, v := range vpsData.Data.VPS {
+	for _, v := range vpsData.Data {
 		if v.Name == name || v.DisplayName == name {
 			displayName := v.DisplayName
 			if displayName == "" {

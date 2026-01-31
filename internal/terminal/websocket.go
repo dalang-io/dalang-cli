@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sync"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/term"
@@ -13,10 +15,12 @@ import (
 
 // Terminal handles WebSocket terminal connection
 type Terminal struct {
-	conn     *websocket.Conn
-	oldState *term.State
-	done     chan struct{}
-	mu       sync.Mutex
+	conn         *websocket.Conn
+	oldState     *term.State
+	done         chan struct{}
+	mu           sync.Mutex
+	closeOnce    sync.Once
+	escapeState  int  // 0=normal, 1=after newline, 2=after tilde
 }
 
 // ResizeMessage represents a terminal resize message
@@ -28,8 +32,15 @@ type ResizeMessage struct {
 
 // NewTerminal creates a new terminal connection
 func NewTerminal(wsURL string) (*Terminal, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	headers := http.Header{}
+	headers.Set("Origin", "https://dalang.io")
+	headers.Set("User-Agent", "dalang-cli/1.0")
+
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, headers)
 	if err != nil {
+		if resp != nil {
+			return nil, fmt.Errorf("failed to connect to WebSocket: %w (status: %d)", err, resp.StatusCode)
+		}
 		return nil, fmt.Errorf("failed to connect to WebSocket: %w", err)
 	}
 
@@ -57,26 +68,17 @@ func (t *Terminal) Run() error {
 	// Send initial size
 	t.SendResize()
 
-	// Start goroutines for reading and writing
-	errChan := make(chan error, 2)
+	// Start writeLoop in background (reads from stdin, writes to WebSocket)
+	go t.writeLoop()
 
-	// Read from WebSocket, write to stdout
-	go func() {
-		errChan <- t.readLoop()
-	}()
+	// Read from WebSocket, write to stdout (this is the main loop)
+	// When WebSocket closes, this returns and we exit
+	err := t.readLoop()
 
-	// Read from stdin, write to WebSocket
-	go func() {
-		errChan <- t.writeLoop()
-	}()
+	// Signal writeLoop to stop (it may be blocked on stdin)
+	t.closeDone()
 
-	// Wait for either to finish
-	select {
-	case err := <-errChan:
-		return err
-	case <-t.done:
-		return nil
-	}
+	return err
 }
 
 // readLoop reads from WebSocket and writes to stdout
@@ -88,9 +90,14 @@ func (t *Terminal) readLoop() error {
 		default:
 			_, message, err := t.conn.ReadMessage()
 			if err != nil {
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					return nil
-				}
+				// Restore terminal first
+				t.restore()
+				t.closeDone()
+
+				fmt.Println("\r\nConnection closed.")
+
+				// Force kill the process - stdin read is blocking and can't be interrupted
+				syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
 				return err
 			}
 
@@ -112,6 +119,8 @@ func (t *Terminal) readLoop() error {
 // writeLoop reads from stdin and writes to WebSocket
 func (t *Terminal) writeLoop() error {
 	buf := make([]byte, 1024)
+	t.escapeState = 1 // Start after "newline" to allow ~. at very beginning
+
 	for {
 		select {
 		case <-t.done:
@@ -123,6 +132,38 @@ func (t *Terminal) writeLoop() error {
 					return nil
 				}
 				return err
+			}
+
+			// Check for SSH-style escape sequence: ~. after newline
+			// State machine: 0=normal, 1=after newline, 2=after tilde
+			for i := 0; i < n; i++ {
+				switch t.escapeState {
+				case 1: // After newline
+					if buf[i] == '~' {
+						t.escapeState = 2
+						continue
+					} else if buf[i] == '\r' || buf[i] == '\n' {
+						t.escapeState = 1
+					} else {
+						t.escapeState = 0
+					}
+				case 2: // After tilde
+					if buf[i] == '.' {
+						// Escape sequence detected - disconnect
+						t.restore()
+						fmt.Println("\r\nConnection closed.")
+						syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+						return nil
+					} else if buf[i] == '\r' || buf[i] == '\n' {
+						t.escapeState = 1
+					} else {
+						t.escapeState = 0
+					}
+				default: // Normal
+					if buf[i] == '\r' || buf[i] == '\n' {
+						t.escapeState = 1
+					}
+				}
 			}
 
 			t.mu.Lock()
@@ -164,16 +205,16 @@ func (t *Terminal) SendResize() {
 	t.mu.Unlock()
 }
 
+// closeDone safely closes the done channel once
+func (t *Terminal) closeDone() {
+	t.closeOnce.Do(func() {
+		close(t.done)
+	})
+}
+
 // Close closes the terminal connection
 func (t *Terminal) Close() {
-	select {
-	case <-t.done:
-		// Already closed
-		return
-	default:
-		close(t.done)
-	}
-
+	t.closeDone()
 	t.restore()
 
 	t.mu.Lock()

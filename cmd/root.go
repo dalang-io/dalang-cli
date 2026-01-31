@@ -25,9 +25,10 @@ const (
 
 // Global flags
 var (
-	jsonOutput  bool
-	quietOutput bool
-	yesFlag     bool
+	jsonOutput    bool
+	quietOutput   bool
+	yesFlag       bool
+	VerboseOutput bool
 )
 
 func printError(format string, args ...interface{}) {
@@ -49,6 +50,12 @@ func printInfo(format string, args ...interface{}) {
 func printWarn(format string, args ...interface{}) {
 	if !quietOutput {
 		fmt.Printf(colorYellow+"! "+colorReset+format+"\n", args...)
+	}
+}
+
+func PrintDebug(format string, args ...interface{}) {
+	if VerboseOutput {
+		fmt.Printf(colorCyan+"[DEBUG] "+colorReset+format+"\n", args...)
 	}
 }
 
@@ -112,6 +119,8 @@ func parseGlobalFlags(args []string) []string {
 			quietOutput = true
 		case "--yes", "-y":
 			yesFlag = true
+		case "--verbose", "-v":
+			VerboseOutput = true
 		default:
 			remaining = append(remaining, args[i])
 		}
@@ -140,6 +149,7 @@ func printHelp() {
     --json               Output in JSON format
     --quiet, -q          Minimal output
     --yes, -y            Skip confirmation prompts
+    --verbose, -v        Show debug output
 
 %sEXAMPLES:%s
     dalang auth                          # Authenticate

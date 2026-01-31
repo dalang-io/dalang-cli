@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/dalang-io/dalang-cli/internal/api"
@@ -33,6 +34,7 @@ func doAuth() error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	printInfo("Initiating authentication...")
 
@@ -56,43 +58,58 @@ func doAuth() error {
 	fmt.Printf("  %sVisit:%s %s%s%s\n", colorBold, colorReset, colorCyan, initResp.Data.VerificationURL, colorReset)
 	fmt.Printf("  %sEnter code:%s %s%s%s\n", colorBold, colorReset, colorYellow+colorBold, initResp.Data.UserCode, colorReset)
 	fmt.Println()
-	printInfo("Waiting for authorization...")
 
-	// Poll for authorization
-	interval := time.Duration(initResp.Data.Interval) * time.Second
-	if interval < 5*time.Second {
-		interval = 5 * time.Second
-	}
-
-	expiresAt := time.Now().Add(time.Duration(initResp.Data.ExpiresIn) * time.Second)
 	deviceCode := initResp.Data.DeviceCode
+	maxRetries := 3
+	pollInterval := 15 * time.Second
 
-	for time.Now().Before(expiresAt) {
-		time.Sleep(interval)
+	for retry := 1; retry <= maxRetries; retry++ {
+		fmt.Printf("%s→%s Attempt %d/%d: Waiting for authorization", colorBlue, colorReset, retry, maxRetries)
 
-		pollResp, err := client.Get(fmt.Sprintf("/cli/auth/poll?device_code=%s", deviceCode))
+		// Countdown timer
+		for remaining := int(pollInterval.Seconds()); remaining > 0; remaining-- {
+			fmt.Printf("\r%s→%s Attempt %d/%d: Checking in %2ds...  ", colorBlue, colorReset, retry, maxRetries, remaining)
+			time.Sleep(1 * time.Second)
+		}
+
+		fmt.Printf("\r%s→%s Attempt %d/%d: Polling...            ", colorBlue, colorReset, retry, maxRetries)
+
+		pollResp, err := client.Get(fmt.Sprintf("/cli/auth/poll?device_code=%s", url.QueryEscape(deviceCode)))
 		if err != nil {
-			continue // Keep polling on errors
+			fmt.Printf("\r%s✗%s Attempt %d/%d: Network error        \n", colorRed, colorReset, retry, maxRetries)
+			continue
 		}
 
 		var authResp api.CLIAuthPollResponse
 		if err := json.Unmarshal(pollResp, &authResp); err != nil {
+			fmt.Printf("\r%s✗%s Attempt %d/%d: Parse error          \n", colorRed, colorReset, retry, maxRetries)
 			continue
 		}
 
-		if authResp.Error == "authorization_pending" {
+		// Check both Error and Message fields (backend uses Message)
+		errMsg := authResp.Error
+		if errMsg == "" {
+			errMsg = authResp.Message
+		}
+
+		if errMsg == "authorization_pending" {
+			fmt.Printf("\r%s…%s Attempt %d/%d: Not yet authorized   \n", colorYellow, colorReset, retry, maxRetries)
 			continue
 		}
 
-		if authResp.Error == "expired_token" {
+		if errMsg == "expired_token" {
+			fmt.Printf("\r%s✗%s Attempt %d/%d: Code expired         \n", colorRed, colorReset, retry, maxRetries)
 			return fmt.Errorf("authorization expired. Please try again")
 		}
 
-		if authResp.Error == "access_denied" {
+		if errMsg == "access_denied" {
+			fmt.Printf("\r%s✗%s Attempt %d/%d: Access denied        \n", colorRed, colorReset, retry, maxRetries)
 			return fmt.Errorf("authorization denied")
 		}
 
 		if authResp.Success && authResp.Data.AccessToken != "" {
+			fmt.Printf("\r%s✓%s Attempt %d/%d: Authorized!          \n", colorGreen, colorReset, retry, maxRetries)
+
 			// Save credentials
 			creds := &config.Credentials{
 				AccessToken:  authResp.Data.AccessToken,
@@ -109,9 +126,12 @@ func doAuth() error {
 			printSuccess("Successfully authenticated as %s%s%s", colorCyan, authResp.Data.Email, colorReset)
 			return nil
 		}
+
+		// Unknown response
+		fmt.Printf("\r%s?%s Attempt %d/%d: Unexpected response  \n", colorYellow, colorReset, retry, maxRetries)
 	}
 
-	return fmt.Errorf("authorization timed out. Please try again")
+	return fmt.Errorf("authorization failed after %d attempts. Please try again", maxRetries)
 }
 
 func authStatus() error {

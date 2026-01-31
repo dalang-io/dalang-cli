@@ -54,15 +54,22 @@ func serviceList() error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	var services []UnifiedService
 
 	// Fetch VPS
+	PrintDebug("Fetching VPS list...")
 	vpsResp, err := client.Get("/vps/list")
-	if err == nil {
+	if err != nil {
+		PrintDebug("VPS fetch error: %v", err)
+	} else {
 		var vpsData api.VPSListResponse
-		if json.Unmarshal(vpsResp, &vpsData) == nil {
-			for _, v := range vpsData.Data.VPS {
+		if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
+			PrintDebug("VPS parse error: %v", err)
+		} else {
+			PrintDebug("Found %d VPS", len(vpsData.Data))
+			for _, v := range vpsData.Data {
 				name := v.DisplayName
 				if name == "" {
 					name = v.Name
@@ -80,10 +87,16 @@ func serviceList() error {
 	}
 
 	// Fetch containers
+	PrintDebug("Fetching containers list...")
 	contResp, err := client.Get("/containers/list")
-	if err == nil {
+	if err != nil {
+		PrintDebug("Containers fetch error: %v", err)
+	} else {
 		var contData api.ContainerListResponse
-		if json.Unmarshal(contResp, &contData) == nil {
+		if err := json.Unmarshal(contResp, &contData); err != nil {
+			PrintDebug("Containers parse error: %v", err)
+		} else {
+			PrintDebug("Found %d containers", len(contData.Data.Containers))
 			for _, c := range contData.Data.Containers {
 				services = append(services, UnifiedService{
 					Type:      "container",
@@ -98,11 +111,17 @@ func serviceList() error {
 	}
 
 	// Fetch deployments/apps
+	PrintDebug("Fetching deployments list...")
 	appResp, err := client.Get("/github/deployments")
-	if err == nil {
+	if err != nil {
+		PrintDebug("Deployments fetch error: %v", err)
+	} else {
 		var appData api.DeploymentListResponse
-		if json.Unmarshal(appResp, &appData) == nil {
-			for _, d := range appData.Data.Deployments {
+		if err := json.Unmarshal(appResp, &appData); err != nil {
+			PrintDebug("Deployments parse error: %v", err)
+		} else {
+			PrintDebug("Found %d deployments", len(appData.Data))
+			for _, d := range appData.Data {
 				services = append(services, UnifiedService{
 					Type:      "app",
 					ID:        d.ID,
@@ -185,7 +204,7 @@ func serviceInfo(name string) error {
 
 	// Find VPS by name
 	var foundVPS *api.VPS
-	for _, v := range vpsData.Data.VPS {
+	for _, v := range vpsData.Data {
 		if v.Name == name || v.DisplayName == name {
 			foundVPS = &v
 			break

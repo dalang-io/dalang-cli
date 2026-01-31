@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/dalang-io/dalang-cli/internal/api"
 	"github.com/dalang-io/dalang-cli/internal/config"
@@ -43,6 +44,7 @@ func connectTerminal(name, mode string) error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	// Find VPS by name
 	vpsResp, err := client.Get("/vps/list")
@@ -56,7 +58,7 @@ func connectTerminal(name, mode string) error {
 	}
 
 	var foundVPS *api.VPS
-	for _, v := range vpsData.Data.VPS {
+	for _, v := range vpsData.Data {
 		if v.Name == name || v.DisplayName == name {
 			foundVPS = &v
 			break
@@ -91,6 +93,8 @@ func connectTerminal(name, mode string) error {
 		mode,
 	)
 
+	PrintDebug("WebSocket URL: %s", strings.Replace(wsURL, creds.AccessToken, "[TOKEN]", 1))
+
 	displayName := foundVPS.DisplayName
 	if displayName == "" {
 		displayName = foundVPS.Name
@@ -105,7 +109,7 @@ func connectTerminal(name, mode string) error {
 	}
 	defer term.Close()
 
-	printSuccess("Connected! Press Ctrl+C to disconnect.\n")
+	printSuccess("Connected! Type ~. (tilde dot) after Enter to disconnect.\n")
 
 	// Set up signal handling (cross-platform)
 	sigChan := make(chan os.Signal, 1)
@@ -116,10 +120,12 @@ func connectTerminal(name, mode string) error {
 		setupResizeHandler(sigChan, term)
 	}
 
-	// Handle interrupt
+	// Handle interrupt - force kill on Ctrl+C
 	go func() {
 		<-sigChan
 		term.Close()
+		fmt.Println("\r\nDisconnected.")
+		syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
 	}()
 
 	// Run terminal
@@ -128,8 +134,6 @@ func connectTerminal(name, mode string) error {
 			return fmt.Errorf("terminal error: %w", err)
 		}
 	}
-
-	fmt.Println("\nConnection closed.")
 	return nil
 }
 

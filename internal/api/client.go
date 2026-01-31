@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/dalang-io/dalang-cli/internal/config"
@@ -18,6 +19,7 @@ type Client struct {
 	BaseURL    string
 	Token      string
 	HTTPClient *http.Client
+	Verbose    bool
 }
 
 // APIError represents an error response from the API
@@ -75,22 +77,38 @@ func NewAuthenticatedClient() (*Client, error) {
 
 // Request makes an HTTP request to the API
 func (c *Client) Request(method, path string, body interface{}) ([]byte, error) {
-	u, err := url.JoinPath(c.BaseURL, path)
-	if err != nil {
-		return nil, err
+	// Don't use url.JoinPath as it encodes query strings incorrectly
+	u := c.BaseURL
+	if !strings.HasSuffix(u, "/") && !strings.HasPrefix(path, "/") {
+		u += "/"
+	} else if strings.HasSuffix(u, "/") && strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+	u += path
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "[DEBUG] %s %s\n", method, u)
 	}
 
 	var bodyReader io.Reader
+	var jsonBody []byte
 	if body != nil {
-		jsonBody, err := json.Marshal(body)
+		var err error
+		jsonBody, err = json.Marshal(body)
 		if err != nil {
 			return nil, err
 		}
 		bodyReader = bytes.NewReader(jsonBody)
+		if c.Verbose {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Request body: %s\n", string(jsonBody))
+		}
 	}
 
 	req, err := http.NewRequest(method, u, bodyReader)
 	if err != nil {
+		if c.Verbose {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Request create error: %v\n", err)
+		}
 		return nil, err
 	}
 
@@ -99,17 +117,38 @@ func (c *Client) Request(method, path string, body interface{}) ([]byte, error) 
 
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+		if c.Verbose {
+			tokenPreview := c.Token
+			if len(tokenPreview) > 20 {
+				tokenPreview = tokenPreview[:20] + "..."
+			}
+			fmt.Fprintf(os.Stderr, "[DEBUG] Auth: Bearer %s\n", tokenPreview)
+		}
 	}
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		if c.Verbose {
+			fmt.Fprintf(os.Stderr, "[DEBUG] HTTP error: %v\n", err)
+		}
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Response status: %d %s\n", resp.StatusCode, resp.Status)
+	}
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		if c.Verbose {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Read body error: %v\n", err)
+		}
 		return nil, err
+	}
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Response body: %s\n", string(respBody))
 	}
 
 	if resp.StatusCode == 401 {
@@ -209,10 +248,8 @@ type Transaction struct {
 
 // VPSListResponse represents the VPS list response
 type VPSListResponse struct {
-	Success bool `json:"success"`
-	Data    struct {
-		VPS []VPS `json:"vps"`
-	} `json:"data"`
+	Success bool  `json:"success"`
+	Data    []VPS `json:"data"`
 }
 
 // VPS represents a VPS instance
@@ -254,10 +291,8 @@ type Container struct {
 
 // DeploymentListResponse represents app deployments
 type DeploymentListResponse struct {
-	Success bool `json:"success"`
-	Data    struct {
-		Deployments []Deployment `json:"deployments"`
-	} `json:"data"`
+	Success bool         `json:"success"`
+	Data    []Deployment `json:"data"`
 }
 
 // Deployment represents an app deployment
@@ -303,7 +338,8 @@ type CLIAuthPollResponse struct {
 		Email        string `json:"email,omitempty"`
 		ExpiresIn    int    `json:"expires_in,omitempty"`
 	} `json:"data"`
-	Error string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // MeResponse represents /auth/me response
