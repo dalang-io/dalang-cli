@@ -137,6 +137,12 @@ Your credentials are stored securely in `~/.dalang/credentials` (Linux/macOS) or
 
 ## Commands
 
+### General
+```bash
+dalang version           # Show CLI version and build info
+dalang help              # Show help
+```
+
 ### Authentication
 ```bash
 dalang auth              # Start authentication flow
@@ -281,6 +287,12 @@ All API changes are designed to be **backward compatible**. The frontend will co
 
 ### Phase 3: CLI Commands
 
+#### General Commands
+- [ ] `dalang version` - Show version, build date, commit hash
+  - [ ] Embed version via ldflags at build time
+  - [ ] Format: `dalang version 1.0.0 (build 2024-01-15, commit abc1234)`
+- [ ] `dalang help` - Show help and available commands
+
 #### Auth Commands
 - [ ] `dalang auth` - Device authorization flow
   - [ ] Call `POST /cli/auth/init`
@@ -354,8 +366,7 @@ All API changes are designed to be **backward compatible**. The frontend will co
 - [ ] `--json` flag for machine-readable output
 - [ ] `--quiet` flag for minimal output
 - [ ] Helpful error messages with suggestions
-- [ ] `dalang version` command
-- [ ] `dalang help` and per-command help
+- [ ] Per-command help (`dalang <command> --help`)
 
 #### Testing
 - [ ] Unit tests for API client
@@ -368,7 +379,10 @@ All API changes are designed to be **backward compatible**. The frontend will co
 #### Build & Release
 - [ ] Makefile with build targets
 - [ ] Cross-compilation (linux/darwin/windows, amd64/arm64)
-- [ ] Version embedding via ldflags
+- [ ] Version embedding via ldflags:
+  ```bash
+  go build -ldflags "-s -w -X main.Version=1.0.0 -X main.BuildDate=$(date -u +%Y-%m-%d) -X main.Commit=$(git rev-parse --short HEAD)"
+  ```
 - [ ] Strip debug symbols (`-s -w`)
 - [ ] Reproducible builds (`-trimpath`)
 
