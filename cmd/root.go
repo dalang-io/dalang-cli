@@ -131,55 +131,69 @@ func parseGlobalFlags(args []string) []string {
 }
 
 func printHelp() {
-	fmt.Printf(`%sDalang CLI%s - Command-line interface for Dalang.io
-
-%sUSAGE:%s
-    dalang <command> [options]
-
-%sCOMMANDS:%s
-    %sversion%s              Show CLI version
-    %sauth%s                 Authenticate with Dalang
-    %scredit%s               Manage credits/wallet
-    %sservice%s              Manage services (VPS, containers, apps)
-    %sshell%s <name>         Open shell to VM
-    %sconsole%s <name>       Open console to VM
-    %sstart%s <name>         Start a VM
-    %sstop%s <name>          Stop a VM
-    %sdelete%s <name>        Delete a VM
-    %sdomain%s               Manage custom domains
-
-%sGLOBAL OPTIONS:%s
-    --json               Output in JSON format
-    --quiet, -q          Minimal output
-    --yes, -y            Skip confirmation prompts
-    --verbose, -v        Show debug output
-
-%sEXAMPLES:%s
-    dalang auth                          # Authenticate
-    dalang credit                        # Check balance
-    dalang service list                  # List all services
-    dalang shell MyVM                    # Connect to VM
-    dalang service create --name MyVM --cpu 2 --ram 1G
-
-Run '%sdalang <command> --help%s' for more information on a command.
-`,
-		colorBold, colorReset,
-		colorYellow, colorReset,
-		colorYellow, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorCyan, colorReset,
-		colorYellow, colorReset,
-		colorYellow, colorReset,
-		colorCyan, colorReset,
-	)
+	fmt.Println(colorBold + "Dalang CLI" + colorReset + " - Command-line interface for Dalang.io cloud services")
+	fmt.Println()
+	fmt.Println(colorYellow + "USAGE:" + colorReset)
+	fmt.Println("    dalang <command> [subcommand] [options]")
+	fmt.Println()
+	fmt.Println(colorYellow + "AUTHENTICATION:" + colorReset)
+	fmt.Println("    " + colorCyan + "auth" + colorReset + "                       Login to your Dalang account")
+	fmt.Println("    " + colorCyan + "auth logout" + colorReset + "                Logout and clear credentials")
+	fmt.Println()
+	fmt.Println(colorYellow + "CREDITS & WALLET:" + colorReset)
+	fmt.Println("    " + colorCyan + "credit" + colorReset + "                     Show current balance")
+	fmt.Println("    " + colorCyan + "credit history" + colorReset + "             Show transaction history")
+	fmt.Println("    " + colorCyan + "credit add <amount>" + colorReset + "        Top up credits (in thousands, e.g., 50 = 50K IDR)")
+	fmt.Println()
+	fmt.Println(colorYellow + "SERVICE MANAGEMENT:" + colorReset)
+	fmt.Println("    " + colorCyan + "service list" + colorReset + "               List all your services (VPS, containers, apps)")
+	fmt.Println("    " + colorCyan + "service info <name>" + colorReset + "        Show detailed info about a service")
+	fmt.Println("    " + colorCyan + "service create" + colorReset + "             Create a new VPS (interactive)")
+	fmt.Println()
+	fmt.Println(colorYellow + "VM OPERATIONS:" + colorReset)
+	fmt.Println("    " + colorCyan + "shell <name>" + colorReset + "               Open interactive shell to VM")
+	fmt.Println("    " + colorCyan + "console <name>" + colorReset + "             Open console connection to VM")
+	fmt.Println("    " + colorCyan + "start <name>" + colorReset + "               Start a stopped VM")
+	fmt.Println("    " + colorCyan + "stop <name>" + colorReset + "                Stop a running VM")
+	fmt.Println("    " + colorCyan + "delete <name>" + colorReset + "              Delete a VM (with confirmation)")
+	fmt.Println()
+	fmt.Println(colorYellow + "CUSTOM DOMAINS:" + colorReset)
+	fmt.Println("    " + colorCyan + "domain enable <vps>" + colorReset + "        Enable custom domain addon for VPS")
+	fmt.Println("    " + colorCyan + "domain list <vps>" + colorReset + "          List custom domains on a VPS")
+	fmt.Println("    " + colorCyan + "domain add <vps> <domain>" + colorReset + "  Add a custom domain to VPS")
+	fmt.Println("    " + colorCyan + "domain verify <domain>" + colorReset + "     Verify domain DNS configuration")
+	fmt.Println("    " + colorCyan + "domain remove <domain>" + colorReset + "     Remove a custom domain")
+	fmt.Println()
+	fmt.Println(colorYellow + "OTHER:" + colorReset)
+	fmt.Println("    " + colorCyan + "version" + colorReset + "                    Show CLI version")
+	fmt.Println("    " + colorCyan + "help <command>" + colorReset + "             Show help for a specific command")
+	fmt.Println()
+	fmt.Println(colorYellow + "GLOBAL OPTIONS:" + colorReset)
+	fmt.Println("    --json          Output in JSON format (for scripting)")
+	fmt.Println("    --quiet, -q     Minimal output")
+	fmt.Println("    --yes, -y       Skip confirmation prompts")
+	fmt.Println("    --verbose, -v   Show debug output")
+	fmt.Println()
+	fmt.Println(colorYellow + "QUICK START:" + colorReset)
+	fmt.Println("    1. Login:           dalang auth")
+	fmt.Println("    2. Check balance:   dalang credit")
+	fmt.Println("    3. List services:   dalang service list")
+	fmt.Println("    4. Connect to VM:   dalang shell <vm-name>")
+	fmt.Println()
+	fmt.Println(colorYellow + "EXAMPLES:" + colorReset)
+	fmt.Println("    dalang auth                              # Login to Dalang")
+	fmt.Println("    dalang credit add 100                    # Top up 100K IDR")
+	fmt.Println("    dalang service list                      # List all services")
+	fmt.Println("    dalang service info MyVM                 # Show VM details")
+	fmt.Println("    dalang shell MyVM                        # SSH into VM")
+	fmt.Println("    dalang domain add MyVM example.com       # Add custom domain")
+	fmt.Println()
+	fmt.Println(colorYellow + "TIPS:" + colorReset)
+	fmt.Println("    - Use " + colorCyan + "~." + colorReset + " (tilde + dot) after Enter to disconnect from shell/console")
+	fmt.Println("    - VM names are case-sensitive")
+	fmt.Println("    - Credits expire 12 months after top-up")
+	fmt.Println()
+	fmt.Println("More info: " + colorCyan + "https://dalang.io/docs/cli" + colorReset)
 }
 
 func cmdHelpFor(command string) error {
