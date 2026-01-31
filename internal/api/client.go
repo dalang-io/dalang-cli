@@ -264,11 +264,12 @@ type VPS struct {
 	StorageType         string `json:"storage_type"`
 	Bandwidth           int    `json:"bandwidth"`
 	Price               int    `json:"price"`
-	ExpiresAt           string `json:"expires_at"`
+	ExpiresAt           string `json:"expired_at"`
 	Region              string `json:"region"`
 	Image               string `json:"image"`
+	Node                string `json:"node"`
 	PublicIP            string `json:"public_ip"`
-	LocalIP             string `json:"local_ip"`
+	LocalIP             string `json:"ipv4_local"`
 	Domain              string `json:"domain"`
 	CustomDomainEnabled int    `json:"custom_domain_enabled"`
 	CustomDomainPrice   int    `json:"custom_domain_price"`
