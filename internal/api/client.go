@@ -266,9 +266,8 @@ type VPS struct {
 	Price               int    `json:"price"`
 	ExpiresAt           string `json:"expired_at"`
 	Region              string `json:"region"`
-	Image               string `json:"image"`
 	Node                string `json:"node"`
-	PublicIP            string `json:"public_ip"`
+	PublicIP            string `json:"ipv4_public"`
 	LocalIP             string `json:"ipv4_local"`
 	Domain              string `json:"domain"`
 	CustomDomainEnabled int    `json:"custom_domain_enabled"`

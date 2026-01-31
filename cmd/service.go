@@ -245,7 +245,9 @@ func serviceInfo(name string) error {
 	fmt.Printf("  Status:     %s%s%s\n", statusColor, foundVPS.Status, colorReset)
 	fmt.Printf("  ID:         %s\n", foundVPS.ID)
 	fmt.Printf("  Region:     %s\n", foundVPS.Region)
-	fmt.Printf("  Image:      %s\n", foundVPS.Image)
+	if foundVPS.Node != "" {
+		fmt.Printf("  Node:       %s\n", foundVPS.Node)
+	}
 	fmt.Println()
 	fmt.Printf("  %sSpecs:%s\n", colorBold, colorReset)
 	fmt.Printf("    CPU:       %d vCPU\n", foundVPS.VCPU)
