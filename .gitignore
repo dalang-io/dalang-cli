@@ -1,0 +1,27 @@
+# Binaries
+dalang
+dalang-*
+*.exe
+
+# Build output
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage.out
+*.test
+
+# Credentials (never commit)
+credentials
+*.pem
+*.key
