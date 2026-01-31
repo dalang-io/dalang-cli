@@ -89,6 +89,7 @@ dalang credit add 500     # Top up 500K IDR
 | `dalang domain add <vps> <domain>` | Add custom domain |
 | `dalang domain verify <domain>` | Verify DNS setup |
 | `dalang domain remove <domain>` | Remove custom domain |
+| `dalang update` | Update CLI to latest version |
 | `dalang version` | Show CLI version |
 | `dalang help <command>` | Show command help |
 

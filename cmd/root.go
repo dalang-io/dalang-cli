@@ -104,6 +104,8 @@ func Execute() error {
 		return cmdDelete(cmdArgs)
 	case "domain", "domains":
 		return cmdDomain(cmdArgs)
+	case "update":
+		return cmdUpdate(cmdArgs)
 	default:
 		printError("Unknown command: %s", command)
 		fmt.Println("\nRun 'dalang help' for usage.")
@@ -165,6 +167,7 @@ func printHelp() {
 	fmt.Println("    " + colorCyan + "domain remove <domain>" + colorReset + "     Remove a custom domain")
 	fmt.Println()
 	fmt.Println(colorYellow + "OTHER:" + colorReset)
+	fmt.Println("    " + colorCyan + "update" + colorReset + "                     Update CLI to latest version")
 	fmt.Println("    " + colorCyan + "version" + colorReset + "                    Show CLI version")
 	fmt.Println("    " + colorCyan + "help <command>" + colorReset + "             Show help for a specific command")
 	fmt.Println()
@@ -216,6 +219,8 @@ func cmdHelpFor(command string) error {
 		printDeleteHelp()
 	case "domain", "domains":
 		printDomainHelp()
+	case "update":
+		printUpdateHelp()
 	default:
 		printError("Unknown command: %s", command)
 		return fmt.Errorf("unknown command: %s", command)
