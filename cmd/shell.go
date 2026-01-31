@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/dalang-io/dalang-cli/internal/api"
 	"github.com/dalang-io/dalang-cli/internal/config"
@@ -120,12 +119,12 @@ func connectTerminal(name, mode string) error {
 		setupResizeHandler(sigChan, term)
 	}
 
-	// Handle interrupt - force kill on Ctrl+C
+	// Handle interrupt - force exit on Ctrl+C
 	go func() {
 		<-sigChan
 		term.Close()
 		fmt.Println("\r\nDisconnected.")
-		syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
+		os.Exit(0)
 	}()
 
 	// Run terminal

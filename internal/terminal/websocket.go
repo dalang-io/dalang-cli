@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"syscall"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/term"
@@ -96,8 +95,8 @@ func (t *Terminal) readLoop() error {
 
 				fmt.Println("\r\nConnection closed.")
 
-				// Force kill the process - stdin read is blocking and can't be interrupted
-				syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
+				// Force exit - stdin read is blocking and can't be interrupted
+				os.Exit(0)
 				return err
 			}
 
@@ -152,7 +151,7 @@ func (t *Terminal) writeLoop() error {
 						// Escape sequence detected - disconnect
 						t.restore()
 						fmt.Println("\r\nConnection closed.")
-						syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+						os.Exit(0)
 						return nil
 					} else if buf[i] == '\r' || buf[i] == '\n' {
 						t.escapeState = 1
