@@ -358,7 +358,7 @@ func serviceCreate(args []string) error {
 		image = "ubuntu"
 	}
 	if region == "" {
-		region = "ID-BANTEN-01"
+		region = "ID-BANTEN-02"
 	}
 
 	// Show summary and confirm
@@ -544,7 +544,7 @@ func printServiceCreateHelp() {
     --storage, -s <size>     Storage size, e.g., 5G, 10G (default: 5G)
     --bandwidth, -b <mbps>   Bandwidth in Mbps (default: 20)
     --image, -i <name>       OS image (default: ubuntu)
-    --region <region>        Region (default: ID-BANTEN-01)
+    --region <region>        Region (default: ID-BANTEN-02)
 
 %sIMAGES:%s
     ubuntu           Ubuntu 24.04 (default)
@@ -560,7 +560,7 @@ func printServiceCreateHelp() {
     fedora           Fedora 40
 
 %sREGIONS:%s
-    ID-BANTEN-01, ID-BANTEN-02, ID-JAKARTA-01, ID-JAKARTA-02
+    ID-BANTEN-02 (default)
 
 %sEXAMPLES:%s
     dalang service create --name MyVM --cpu 2 --ram 1G --storage 10G

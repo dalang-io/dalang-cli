@@ -124,7 +124,7 @@ When running `dalang service info <name>`, you get:
 
 - **Status**: RUNNING, STOPPED, CREATING, UNAVAILABLE
 - **ID**: UUID of the VPS
-- **Region**: ID-JAKARTA-01, ID-JAKARTA-02, ID-BANTEN-01, ID-BANTEN-02
+- **Region**: ID-BANTEN-02
 - **Node**: Physical server node (if assigned)
 - **Specs**: CPU, RAM, Storage, Bandwidth
 - **Network**: Public IP, Local IP
