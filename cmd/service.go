@@ -384,6 +384,7 @@ func serviceCreate(args []string) error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	printInfo("Creating VPS...")
 
