@@ -44,8 +44,18 @@ dalang console <vps-name>   # Console connection
 
 ### Create New VPS
 ```bash
+# Basic VM with Ubuntu 24.04 (default)
 dalang service create --name MyVM --cpu 2 --ram 1G --storage 10G
-dalang service create --name WebServer --cpu 4 --ram 4G --image ubuntu --region ID-JAKARTA-01
+
+# Specify OS version
+dalang service create --name WebServer --cpu 1 --ram 1G --image ubuntu:24.04
+dalang service create --name DevBox --cpu 2 --ram 2G --image ubuntu:22.04
+dalang service create --name Legacy --cpu 1 --ram 512M --image debian:11
+
+# Available images:
+#   ubuntu, ubuntu:24.04, ubuntu:22.04, ubuntu:20.04
+#   debian, debian:12, debian:11
+#   centos, rocky, almalinux, fedora
 ```
 
 ### Custom Domains

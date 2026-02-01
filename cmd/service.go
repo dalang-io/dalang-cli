@@ -547,14 +547,25 @@ func printServiceCreateHelp() {
     --region <region>        Region (default: ID-BANTEN-01)
 
 %sIMAGES:%s
-    ubuntu, debian, centos, rocky, almalinux
+    ubuntu           Ubuntu 24.04 (default)
+    ubuntu:24.04     Ubuntu 24.04 LTS
+    ubuntu:22.04     Ubuntu 22.04 LTS
+    ubuntu:20.04     Ubuntu 20.04 LTS
+    debian           Debian 12
+    debian:12        Debian 12
+    debian:11        Debian 11
+    centos           CentOS Stream 9
+    rocky            Rocky Linux 9
+    almalinux        AlmaLinux 9
+    fedora           Fedora 40
 
 %sREGIONS:%s
     ID-BANTEN-01, ID-BANTEN-02, ID-JAKARTA-01, ID-JAKARTA-02
 
 %sEXAMPLES:%s
     dalang service create --name MyVM --cpu 2 --ram 1G --storage 10G
-    dalang service create -n WebServer -c 4 -r 4G -s 50G -i ubuntu
+    dalang service create --name WebServer --cpu 1 --ram 1G --image ubuntu:24.04
+    dalang service create -n DevBox -c 2 -r 2G -s 20G -i debian:12
 `,
 		colorCyan, colorReset,
 		colorYellow, colorReset,
