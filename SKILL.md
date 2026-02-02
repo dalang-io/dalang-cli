@@ -42,6 +42,15 @@ dalang shell <vps-name>     # Interactive shell (lxc exec)
 dalang console <vps-name>   # Console connection
 ```
 
+### Check VPS Pricing
+```bash
+# Show pricing table
+dalang price
+
+# Calculate price for specific configuration
+dalang price --cpu 2 --ram 2G --storage 20G --bandwidth 40
+```
+
 ### Create New VPS
 ```bash
 # Basic VM with Ubuntu 24.04 (default)
@@ -50,13 +59,46 @@ dalang service create --name MyVM --cpu 2 --ram 1G --storage 10G
 # Specify OS version
 dalang service create --name WebServer --cpu 1 --ram 1G --image ubuntu:24.04
 dalang service create --name DevBox --cpu 2 --ram 2G --image ubuntu:22.04
-dalang service create --name Legacy --cpu 1 --ram 512M --image debian:11
-
-# Available images:
-#   ubuntu, ubuntu:24.04, ubuntu:22.04, ubuntu:20.04
-#   debian, debian:12, debian:11
-#   centos, rocky, almalinux, fedora
+dalang service create --name Database --cpu 2 --ram 4G --image debian:12
 ```
+
+## Available OS Images
+
+All images support incus-agent for shell/console access.
+
+| Image Name | Description | Cloud-Init |
+|------------|-------------|------------|
+| `ubuntu` | Ubuntu 24.04 LTS (default) | Yes |
+| `ubuntu:24.04` | Ubuntu 24.04 LTS | Yes |
+| `ubuntu:22.04` | Ubuntu 22.04 LTS | Yes |
+| `debian` | Debian 12 (bookworm) | Yes |
+| `debian:12` | Debian 12 (bookworm) | Yes |
+| `debian:11` | Debian 11 (bullseye) | Yes |
+| `centos` | CentOS Stream 9 | Yes |
+| `rocky` | Rocky Linux 9 | Yes |
+| `almalinux` | AlmaLinux 9 | Yes |
+
+**Note**: All VPS images include incus-agent for `dalang shell` and `dalang console` access.
+
+## VPS Pricing
+
+Pay-as-you-go pricing based on resources:
+
+| Resource | Price |
+|----------|-------|
+| vCPU | Rp 20.000/vCPU/month |
+| RAM | Rp 5.000/GB/month |
+| Storage (SSD) | Rp 1.000/GB/month |
+| Bandwidth | 20 Mbps included FREE |
+| | +Rp 20.000 per additional 20 Mbps |
+
+**Formula**: `Price = (vCPU × 20K) + (RAM_GB × 5K) + (Storage_GB × 1K) + Extra bandwidth`
+
+**Example Configurations**:
+- Starter (1 vCPU, 1GB, 5GB, 20Mbps) → Rp 30.000/month
+- Basic (1 vCPU, 1GB, 10GB, 20Mbps) → Rp 35.000/month
+- Standard (2 vCPU, 2GB, 20GB, 40Mbps) → Rp 90.000/month
+- Pro (4 vCPU, 4GB, 50GB, 100Mbps) → Rp 230.000/month
 
 ### Custom Domains
 ```bash
@@ -86,6 +128,8 @@ dalang credit add 500     # Top up 500K IDR
 | `dalang credit` | Show current balance |
 | `dalang credit history` | Show transaction history |
 | `dalang credit add <N>` | Top up N thousand IDR |
+| `dalang price` | Show VPS pricing table |
+| `dalang price --cpu X --ram XG` | Calculate price for config |
 | `dalang service list` | List all services |
 | `dalang service info <name>` | Show service details |
 | `dalang service create` | Create new VPS |

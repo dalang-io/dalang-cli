@@ -361,9 +361,12 @@ func serviceCreate(args []string) error {
 		region = "ID-BANTEN-02"
 	}
 
+	// Calculate price
+	price := CalculateVPSPrice(cpu, ram, storage, bandwidth)
+
 	// Show summary and confirm
 	fmt.Printf("\n%sCreate VPS%s\n", colorBold, colorReset)
-	fmt.Println(strings.Repeat("─", 40))
+	fmt.Println(strings.Repeat("─", 45))
 	fmt.Printf("  Name:      %s\n", name)
 	fmt.Printf("  CPU:       %d vCPU\n", cpu)
 	fmt.Printf("  RAM:       %d MB\n", ram)
@@ -371,6 +374,10 @@ func serviceCreate(args []string) error {
 	fmt.Printf("  Bandwidth: %d Mbps\n", bandwidth)
 	fmt.Printf("  Image:     %s\n", image)
 	fmt.Printf("  Region:    %s\n", region)
+	fmt.Println(strings.Repeat("─", 45))
+	fmt.Printf("  %sEstimated Price: %s%s/month%s\n", colorBold, colorGreen, formatIDR(int64(price)), colorReset)
+	fmt.Println()
+	fmt.Printf("  %sTip:%s Run '%sdalang price%s' to see pricing details\n", colorYellow, colorReset, colorCyan, colorReset)
 	fmt.Println()
 
 	if !yesFlag {
@@ -546,6 +553,14 @@ func printServiceCreateHelp() {
     --image, -i <name>       OS image (default: ubuntu)
     --region <region>        Region (default: ID-BANTEN-02)
 
+%sPRICING:%s
+    vCPU:       Rp 20.000/vCPU/month
+    RAM:        Rp 5.000/GB/month
+    Storage:    Rp 1.000/GB/month
+    Bandwidth:  20 Mbps included FREE, +Rp 20.000 per additional 20 Mbps
+
+    Run '%sdalang price%s' for detailed pricing info.
+
 %sIMAGES:%s
     ubuntu           Ubuntu 24.04 (default)
     ubuntu:24.04     Ubuntu 24.04 LTS
@@ -570,6 +585,8 @@ func printServiceCreateHelp() {
 		colorCyan, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
+		colorYellow, colorReset,
+		colorCyan, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,

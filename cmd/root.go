@@ -104,6 +104,8 @@ func Execute() error {
 		return cmdDelete(cmdArgs)
 	case "domain", "domains":
 		return cmdDomain(cmdArgs)
+	case "price", "pricing":
+		return cmdPrice(cmdArgs)
 	case "update":
 		return cmdUpdate(cmdArgs)
 	default:
@@ -166,6 +168,10 @@ func printHelp() {
 	fmt.Println("    " + colorCyan + "domain verify <domain>" + colorReset + "     Verify domain DNS configuration")
 	fmt.Println("    " + colorCyan + "domain remove <domain>" + colorReset + "     Remove a custom domain")
 	fmt.Println()
+	fmt.Println(colorYellow + "PRICING:" + colorReset)
+	fmt.Println("    " + colorCyan + "price" + colorReset + "                      Show VPS pricing table")
+	fmt.Println("    " + colorCyan + "price --cpu 2 --ram 2G" + colorReset + "    Calculate price for specific config")
+	fmt.Println()
 	fmt.Println(colorYellow + "OTHER:" + colorReset)
 	fmt.Println("    " + colorCyan + "update" + colorReset + "                     Update CLI to latest version")
 	fmt.Println("    " + colorCyan + "version" + colorReset + "                    Show CLI version")
@@ -219,6 +225,8 @@ func cmdHelpFor(command string) error {
 		printDeleteHelp()
 	case "domain", "domains":
 		printDomainHelp()
+	case "price", "pricing":
+		printPriceHelp()
 	case "update":
 		printUpdateHelp()
 	default:
