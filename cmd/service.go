@@ -517,20 +517,35 @@ func printServiceHelp() {
     dalang service list              List all services
     dalang service info <name>       Show service details
     dalang service create [options]  Create new VPS
-    dalang service upgrade <name>    Upgrade service
 
 %sDESCRIPTION:%s
     Manage your VPS instances, containers, and app deployments.
 
-%sEXAMPLES:%s
-    dalang service list
-    dalang service info MyVM
-    dalang service create --name MyVM --cpu 2 --ram 1G
-    dalang service upgrade MyVM --cpu 4
+%sSUBCOMMANDS:%s
+    list      List all your services (VPS, containers, apps)
+    info      Show detailed information about a service
+    create    Create a new VPS instance
 
-Run '%sdalang service create --help%s' for create options.
+%sEXAMPLES:%s
+    # List all services
+    dalang service list
+
+    # Show details of a specific VM
+    dalang service info MyVM
+
+    # Create a basic VPS (1 vCPU, 512MB RAM, 5GB storage)
+    dalang service create --name MyVM
+
+    # Create a VPS with custom specs
+    dalang service create --name WebServer --cpu 2 --ram 2G --storage 20G
+
+    # Create a VPS with specific OS image
+    dalang service create --name DevBox --cpu 2 --ram 4G --image debian:12
+
+Run '%sdalang service create --help%s' for all create options.
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,

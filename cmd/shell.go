@@ -140,20 +140,27 @@ func printShellHelp() {
 	fmt.Printf(`%sdalang shell%s - Open shell to VM
 
 %sUSAGE:%s
-    dalang shell <name>
+    dalang shell <vm-name>
 
 %sDESCRIPTION:%s
     Opens an interactive shell session to the specified VM.
-    Uses lxc exec under the hood for direct shell access.
+    Uses incus exec under the hood for direct shell access.
 
 %sEXAMPLES:%s
-    dalang shell MyVM
+    dalang shell MyVM              # Connect to VM named MyVM
+    dalang shell WebServer         # Connect to VM named WebServer
+
+%sDISCONNECT:%s
+    Press Enter, then type ~. (tilde followed by period) to disconnect.
+    Or type 'exit' in the shell.
 
 %sNOTE:%s
-    The VM must be in RUNNING state to connect.
-    Press Ctrl+C or type 'exit' to disconnect.
+    - The VM must be in RUNNING state to connect
+    - Use 'dalang start <name>' if the VM is stopped
+    - VM names are case-sensitive
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
@@ -165,20 +172,27 @@ func printConsoleHelp() {
 	fmt.Printf(`%sdalang console%s - Open console to VM
 
 %sUSAGE:%s
-    dalang console <name>
+    dalang console <vm-name>
 
 %sDESCRIPTION:%s
     Opens a console session to the specified VM.
-    Similar to shell but connects to the VM console directly.
+    Similar to shell but connects to the VM's virtual console directly.
+    Useful when shell access is not available.
 
 %sEXAMPLES:%s
-    dalang console MyVM
+    dalang console MyVM            # Connect to VM named MyVM
+    dalang console WebServer       # Connect to VM named WebServer
+
+%sDISCONNECT:%s
+    Press Enter, then type ~. (tilde followed by period) to disconnect.
 
 %sNOTE:%s
-    The VM must be in RUNNING state to connect.
-    Press Ctrl+C to disconnect.
+    - The VM must be in RUNNING state to connect
+    - Use 'dalang start <name>' if the VM is stopped
+    - VM names are case-sensitive
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,

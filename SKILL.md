@@ -6,6 +6,66 @@ This document helps AI assistants understand and use the Dalang CLI tool effecti
 
 Dalang CLI is a command-line interface for managing cloud services on Dalang.io, including VPS instances, containers, and app deployments.
 
+## AI Agent Autonomy & Self-Replication
+
+Dalang CLI is designed for autonomous AI agents that need to provision and manage their own infrastructure. Key capabilities:
+
+### Self-Replication Pattern
+```bash
+# 1. Create a new VM for the replica
+dalang service create --name agent-replica-001 --cpu 2 --ram 2G --storage 20G --image ubuntu:24.04 -y
+
+# 2. Wait for VM to be ready, then connect
+dalang shell agent-replica-001
+
+# 3. Inside the VM: install dependencies and clone yourself
+apt update && apt install -y curl git
+curl -fsSL https://dalang.io/cli/install.sh | bash
+git clone <your-agent-repo>
+# Start the agent process
+```
+
+### Autonomous Infrastructure Control
+- **Create VMs programmatically**: Spawn new instances without human intervention
+- **Self-healing**: Detect failed instances and recreate them
+- **Horizontal scaling**: Create multiple replicas based on workload
+- **Resource management**: Monitor and adjust VM specs as needed
+
+### Example: OpenClaw-style Self-Replication
+```bash
+#!/bin/bash
+# Autonomous agent self-replication script
+
+REPLICA_NAME="agent-$(date +%s)"
+
+# Create new VM
+dalang service create --name "$REPLICA_NAME" --cpu 2 --ram 2G --storage 20G -y
+
+# Wait for provisioning
+sleep 30
+
+# Deploy agent to new VM (via shell commands)
+dalang shell "$REPLICA_NAME" << 'EOF'
+apt update && apt install -y python3 python3-pip git
+pip3 install openai anthropic
+git clone https://github.com/your-org/your-agent.git /opt/agent
+cd /opt/agent && python3 main.py &
+EOF
+
+echo "Replica $REPLICA_NAME deployed successfully"
+```
+
+### JSON Output for Programmatic Control
+```bash
+# All commands support --json for easy parsing
+dalang service list --json | jq '.[] | select(.status == "RUNNING")'
+dalang service info MyVM --json | jq -r '.public_ip'
+dalang credit --json | jq -r '.balance'
+```
+
+### Automated Credential Management
+Credentials are stored in `~/.dalang/credentials` and persist across sessions. AI agents can authenticate once and operate autonomously.
+
 ## Authentication
 
 Before using any command, the user must be authenticated:

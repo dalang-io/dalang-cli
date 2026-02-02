@@ -171,15 +171,23 @@ func printStartHelp() {
 	fmt.Printf(`%sdalang start%s - Start a VM
 
 %sUSAGE:%s
-    dalang start <name>
+    dalang start <vm-name>
 
 %sDESCRIPTION:%s
-    Starts a stopped VM instance.
+    Starts a stopped VM instance. The VM will boot and become available
+    for shell/console access.
 
 %sEXAMPLES:%s
-    dalang start MyVM
+    dalang start MyVM              # Start VM named MyVM
+    dalang start WebServer         # Start VM named WebServer
+
+%sNOTE:%s
+    - VM names are case-sensitive
+    - Use 'dalang service list' to see available VMs
+    - After starting, use 'dalang shell <name>' to connect
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
@@ -190,15 +198,23 @@ func printStopHelp() {
 	fmt.Printf(`%sdalang stop%s - Stop a VM
 
 %sUSAGE:%s
-    dalang stop <name>
+    dalang stop <vm-name>
 
 %sDESCRIPTION:%s
-    Stops a running VM instance.
+    Stops a running VM instance. The VM will shut down gracefully.
+    All data is preserved and you can restart it later.
 
 %sEXAMPLES:%s
-    dalang stop MyVM
+    dalang stop MyVM               # Stop VM named MyVM
+    dalang stop WebServer          # Stop VM named WebServer
+
+%sNOTE:%s
+    - VM names are case-sensitive
+    - Use 'dalang service list' to see running VMs
+    - Stopped VMs still incur charges (use 'dalang delete' to remove)
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
@@ -209,21 +225,29 @@ func printDeleteHelp() {
 	fmt.Printf(`%sdalang delete%s - Delete a VM
 
 %sUSAGE:%s
-    dalang delete <name>
-    dalang delete <name> --yes
+    dalang delete <vm-name>
+    dalang delete <vm-name> --yes
 
 %sDESCRIPTION:%s
-    Permanently deletes a VM and all its data.
+    Permanently deletes a VM and all its data. This action cannot be undone.
     Requires confirmation unless --yes flag is provided.
 
 %sOPTIONS:%s
     --yes, -y    Skip confirmation prompt
 
 %sEXAMPLES:%s
-    dalang delete MyVM           # Will prompt for confirmation
-    dalang delete MyVM --yes     # Skip confirmation
+    dalang delete MyVM             # Will prompt for confirmation
+    dalang delete MyVM --yes       # Skip confirmation
+    dalang delete WebServer -y     # Short form, skip confirmation
+
+%sWARNING:%s
+    This will permanently delete:
+    - All data stored on the VM
+    - All custom domain configurations
+    - Any associated backups
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,

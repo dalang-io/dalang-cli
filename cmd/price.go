@@ -188,10 +188,10 @@ func printPriceHelp() {
     dalang price [options]          Calculate price for specific config
 
 %sOPTIONS:%s
-    --cpu, -c <count>        Number of vCPUs
-    --ram, -r <size>         RAM size (e.g., 512M, 1G, 2G)
-    --storage, -s <size>     Storage size (e.g., 10G, 20G)
-    --bandwidth, -b <mbps>   Bandwidth in Mbps
+    --cpu, -c <count>        Number of vCPUs (default: 1)
+    --ram, -r <size>         RAM size (e.g., 512M, 1G, 2G) (default: 512M)
+    --storage, -s <size>     Storage size (e.g., 10G, 20G) (default: 5G)
+    --bandwidth, -b <mbps>   Bandwidth in Mbps (default: 20)
 
 %sPRICING:%s
     vCPU:       Rp 20.000/vCPU/month
@@ -201,11 +201,31 @@ func printPriceHelp() {
                 +Rp 20.000 per additional 20 Mbps
 
 %sEXAMPLES:%s
+    # Show pricing table
     dalang price
+
+    # Calculate price for 2 vCPU, 2GB RAM, 20GB storage
     dalang price --cpu 2 --ram 2G --storage 20G
+
+    # Calculate price with extra bandwidth (40 Mbps)
+    dalang price --cpu 2 --ram 2G --storage 20G --bandwidth 40
+
+    # Short form
     dalang price -c 4 -r 4G -s 50G -b 100
+
+%sPRICE FORMULA:%s
+    Price = (vCPU × 20K) + (RAM_GB × 5K) + (Storage_GB × 1K)
+          + ((Bandwidth - 20) / 20) × 20K
+
+%sEXAMPLE CONFIGS:%s
+    Starter:  1 vCPU, 1GB RAM, 5GB    = Rp 30.000/month
+    Basic:    1 vCPU, 1GB RAM, 10GB   = Rp 35.000/month
+    Standard: 2 vCPU, 2GB RAM, 20GB   = Rp 70.000/month
+    Pro:      4 vCPU, 4GB RAM, 50GB   = Rp 150.000/month
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
