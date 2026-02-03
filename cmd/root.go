@@ -105,6 +105,8 @@ func Execute() error {
 		return cmdService(cmdArgs)
 	case "shell":
 		return cmdShell(cmdArgs)
+	case "exec":
+		return cmdExec(cmdArgs)
 	case "console":
 		return cmdConsole(cmdArgs)
 	case "start":
@@ -169,7 +171,8 @@ func printHelp() {
 	fmt.Println("    " + colorCyan + "service create" + colorReset + "             Create a new VPS")
 	fmt.Println()
 	fmt.Printf("  %sVM Operations%s\n", colorBold, colorReset)
-	fmt.Println("    " + colorCyan + "shell <name>" + colorReset + "               Open interactive shell to VM")
+	fmt.Println("    " + colorCyan + "shell <name>" + colorReset + "               Open persistent shell to VM (reconnects to session)")
+	fmt.Println("    " + colorCyan + "exec <name> \"cmd\"" + colorReset + "          Execute command in VM session, return output")
 	fmt.Println("    " + colorCyan + "console <name>" + colorReset + "             Open console connection to VM")
 	fmt.Println("    " + colorCyan + "start <name>" + colorReset + "               Start a stopped VM")
 	fmt.Println("    " + colorCyan + "stop <name>" + colorReset + "                Stop a running VM")
@@ -248,6 +251,8 @@ func cmdHelpFor(command string) error {
 		printServiceHelp()
 	case "shell":
 		printShellHelp()
+	case "exec":
+		printExecHelp()
 	case "console":
 		printConsoleHelp()
 	case "start":

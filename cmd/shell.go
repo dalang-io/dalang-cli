@@ -137,29 +137,49 @@ func connectTerminal(name, mode string) error {
 }
 
 func printShellHelp() {
-	fmt.Printf(`%sdalang shell%s - Open shell to VM
+	fmt.Printf(`%sdalang shell%s - Open persistent shell to VM
 
 %sUSAGE:%s
     dalang shell <vm-name>
 
 %sDESCRIPTION:%s
-    Opens an interactive shell session to the specified VM.
-    Uses incus exec under the hood for direct shell access.
+    Opens an interactive shell session to the specified VM using a
+    persistent tmux session. If you disconnect (network drop, Ctrl+C),
+    the session keeps running and you can reconnect later.
+
+    This is similar to mosh - your session state (running processes,
+    environment variables, current directory) persists across disconnects.
 
 %sEXAMPLES:%s
     dalang shell MyVM              # Connect to VM named MyVM
     dalang shell WebServer         # Connect to VM named WebServer
 
+%sPERSISTENCE:%s
+    # Session persists across disconnects
+    dalang shell myvm
+    export FOO=bar
+    # Disconnect (Ctrl+C or network drop)
+
+    dalang shell myvm              # Reconnects to same session
+    echo $FOO                      # Outputs "bar" - state preserved!
+
 %sDISCONNECT:%s
     Press Enter, then type ~. (tilde followed by period) to disconnect.
-    Or type 'exit' in the shell.
+    Or press Ctrl+C.
+    Note: 'exit' will end the tmux session (not just disconnect).
+
+%sRELATED:%s
+    dalang exec <name> "cmd"       # Execute command without interactive shell
 
 %sNOTE:%s
     - The VM must be in RUNNING state to connect
     - Use 'dalang start <name>' if the VM is stopped
     - VM names are case-sensitive
+    - tmux is auto-installed if missing on first connect
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
