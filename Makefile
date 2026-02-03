@@ -13,7 +13,7 @@ BINARY_NAME := dalang
 DIST_DIR := dist
 
 # Build targets
-PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+PLATFORMS := linux/amd64 linux/arm64 android/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
 .PHONY: all build clean test dist checksums help
 
@@ -47,7 +47,13 @@ dist: clean
 		output_name=$(BINARY_NAME)-$$GOOS-$$GOARCH; \
 		if [ $$GOOS = "windows" ]; then output_name=$$output_name.exe; fi; \
 		echo "Building $$output_name..."; \
-		GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
+		if [ $$GOOS = "android" ]; then \
+			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
+		elif [ $$GOOS = "linux" ]; then \
+			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
+		else \
+			GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
+		fi; \
 	done
 	@echo "Build complete!"
 	@ls -la $(DIST_DIR)/

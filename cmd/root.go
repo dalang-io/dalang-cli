@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"strings"
 )
 
 // Version info - set from main.go
@@ -61,13 +63,22 @@ func PrintDebug(format string, args ...interface{}) {
 
 // Execute runs the CLI
 func Execute() error {
-	if len(os.Args) < 2 {
+	args := os.Args[1:]
+
+	// Android's linker adds executable path as extra argument - skip it
+	if runtime.GOOS == "android" && len(args) > 0 {
+		if strings.HasPrefix(args[0], "/") && strings.HasSuffix(args[0], "dalang") {
+			args = args[1:]
+		}
+	}
+
+	if len(args) < 1 {
 		printHelp()
 		return nil
 	}
 
 	// Parse global flags first
-	args := parseGlobalFlags(os.Args[1:])
+	args = parseGlobalFlags(args)
 
 	if len(args) == 0 {
 		printHelp()

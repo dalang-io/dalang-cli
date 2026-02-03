@@ -1,12 +1,15 @@
 package terminal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/term"
@@ -35,7 +38,30 @@ func NewTerminal(wsURL string) (*Terminal, error) {
 	headers.Set("Origin", "https://dalang.io")
 	headers.Set("User-Agent", "dalang-cli/1.0")
 
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, headers)
+	// Custom resolver that uses Cloudflare DNS over IPv4
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{Timeout: 10 * time.Second}
+			return d.DialContext(ctx, "udp4", "1.1.1.1:53")
+		},
+	}
+
+	// Custom dialer that forces IPv4 and uses custom resolver
+	netDialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Resolver:  resolver,
+	}
+
+	wsDialer := &websocket.Dialer{
+		NetDialContext:    func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return netDialer.DialContext(ctx, "tcp4", addr)
+		},
+		HandshakeTimeout: 45 * time.Second,
+	}
+
+	conn, resp, err := wsDialer.Dial(wsURL, headers)
 	if err != nil {
 		if resp != nil {
 			return nil, fmt.Errorf("failed to connect to WebSocket: %w (status: %d)", err, resp.StatusCode)

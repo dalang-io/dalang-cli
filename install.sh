@@ -5,8 +5,16 @@
 set -e
 
 DOWNLOAD_BASE="https://dalang.io/cli"
-INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="dalang"
+
+# Detect Termux environment and set install directory
+if [ -n "$TERMUX_VERSION" ] || [ -d "/data/data/com.termux" ]; then
+    INSTALL_DIR="/data/data/com.termux/files/usr/bin"
+    IS_TERMUX=1
+else
+    INSTALL_DIR="/usr/local/bin"
+    IS_TERMUX=0
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -42,13 +50,18 @@ detect_os() {
     esac
 }
 
+# Check if running in Termux
+is_termux() {
+    [ "$IS_TERMUX" = "1" ]
+}
+
 # Detect architecture
 detect_arch() {
     ARCH="$(uname -m)"
     case "$ARCH" in
-        x86_64|amd64)  echo "amd64" ;;
-        aarch64|arm64) echo "arm64" ;;
-        *)             error "Unsupported architecture: $ARCH" ;;
+        x86_64|amd64)   echo "amd64" ;;
+        aarch64|arm64)  echo "arm64" ;;
+        *)              error "Unsupported architecture: $ARCH" ;;
     esac
 }
 
@@ -77,7 +90,13 @@ main() {
     OS=$(detect_os)
     ARCH=$(detect_arch)
 
-    info "Detected: ${OS}/${ARCH}"
+    # Use android build for Termux
+    if is_termux; then
+        OS="android"
+        info "Detected: ${OS}/${ARCH} (Termux)"
+    else
+        info "Detected: ${OS}/${ARCH}"
+    fi
 
     # Construct download URL
     BINARY="dalang-${OS}-${ARCH}"
@@ -100,13 +119,24 @@ main() {
     # Make executable
     chmod +x "$TMP_FILE"
 
-    # Check if we need sudo
+    # Check if we need sudo (not needed in Termux)
     NEED_SUDO=""
-    if [ ! -w "$INSTALL_DIR" ]; then
+    if is_termux; then
+        info "Installing to ${INSTALL_DIR} (Termux)"
+    elif [ ! -w "$INSTALL_DIR" ]; then
         NEED_SUDO="sudo"
         info "Installing to ${INSTALL_DIR} (requires sudo)"
     else
         info "Installing to ${INSTALL_DIR}"
+    fi
+
+    # Ensure install directory exists (for Termux)
+    if [ ! -d "$INSTALL_DIR" ]; then
+        if [ -n "$NEED_SUDO" ]; then
+            sudo mkdir -p "$INSTALL_DIR"
+        else
+            mkdir -p "$INSTALL_DIR"
+        fi
     fi
 
     # Install

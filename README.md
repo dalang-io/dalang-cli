@@ -36,7 +36,11 @@ sudo mv dalang-darwin-amd64 /usr/local/bin/dalang
 
 ### Windows
 
-Download `dalang-windows-amd64.exe` from [dalang.io/cli](https://dalang.io/cli), rename to `dalang.exe`, and add to your PATH.
+```powershell
+irm https://dalang.io/install.ps1 | iex
+```
+
+Or download manually from [dalang.io/cli](https://dalang.io/cli).
 
 ### Verify Installation
 
