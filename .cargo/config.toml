@@ -1,0 +1,6 @@
+[target.aarch64-linux-android]
+linker = "/home/dalang/android-ndk-r27c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+
+[target.x86_64-pc-windows-gnu]
+linker = "zig"
+rustflags = ["-C", "linker-flavor=gcc", "-C", "link-arg=--target=x86_64-windows-gnu"]

@@ -250,10 +250,18 @@ impl Terminal {
             MaybeTlsStream::Plain(stream) => {
                 let _ = stream.set_read_timeout(timeout);
             }
+            #[cfg(feature = "native")]
             MaybeTlsStream::NativeTls(tls_stream) => {
                 let _ = tls_stream.get_ref().set_read_timeout(timeout);
             }
-            _ => {}
+            _ => {
+                // For rustls or other TLS backends, try to get the underlying stream
+                // via the Rustls variant if available
+                #[cfg(feature = "rustls")]
+                if let MaybeTlsStream::Rustls(tls_stream) = self.ws.get_ref() {
+                    let _ = tls_stream.get_ref().set_read_timeout(timeout);
+                }
+            }
         }
     }
 
