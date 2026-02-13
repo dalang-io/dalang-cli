@@ -1,4 +1,5 @@
 mod client;
+pub mod dns;
 pub mod error;
 pub mod types;
 

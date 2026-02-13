@@ -57,6 +57,7 @@ pub fn cmd_update(args: &[String]) -> Result<(), String> {
     let agent = ureq::AgentBuilder::new()
         .timeout(std::time::Duration::from_secs(120))
         .tls_connector(std::sync::Arc::new(tls))
+        .resolver(crate::api::dns::CloudflareDns)
         .build();
 
     let resp = agent
@@ -121,6 +122,7 @@ fn get_latest_version() -> Result<api::VersionInfo, String> {
     let agent = ureq::AgentBuilder::new()
         .timeout(std::time::Duration::from_secs(10))
         .tls_connector(std::sync::Arc::new(tls))
+        .resolver(crate::api::dns::CloudflareDns)
         .build();
 
     let resp = agent

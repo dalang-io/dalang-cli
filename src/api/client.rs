@@ -79,6 +79,7 @@ impl Client {
         let agent = ureq::AgentBuilder::new()
             .timeout(std::time::Duration::from_secs(30))
             .tls_connector(std::sync::Arc::new(tls_connector))
+            .resolver(super::dns::CloudflareDns)
             .build();
 
         let mut req = match method {
