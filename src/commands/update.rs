@@ -52,13 +52,7 @@ pub fn cmd_update(args: &[String]) -> Result<(), String> {
     let tmp_dir = env::temp_dir();
     let tmp_path = tmp_dir.join(format!("dalang-update-{}", std::process::id()));
 
-    let tls = native_tls::TlsConnector::new()
-        .map_err(|e| format!("TLS init error: {}", e))?;
-    let agent = ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(120))
-        .tls_connector(std::sync::Arc::new(tls))
-        .resolver(crate::api::dns::CloudflareDns)
-        .build();
+    let agent = build_agent(120);
 
     let resp = agent
         .get(&download_url)
@@ -116,14 +110,23 @@ pub fn cmd_update(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+fn build_agent(timeout_secs: u64) -> ureq::Agent {
+    let mut builder = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .resolver(crate::api::dns::CloudflareDns);
+
+    #[cfg(feature = "native")]
+    {
+        if let Ok(tls) = native_tls::TlsConnector::new() {
+            builder = builder.tls_connector(std::sync::Arc::new(tls));
+        }
+    }
+
+    builder.build()
+}
+
 fn get_latest_version() -> Result<api::VersionInfo, String> {
-    let tls = native_tls::TlsConnector::new()
-        .map_err(|e| format!("TLS init error: {}", e))?;
-    let agent = ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(10))
-        .tls_connector(std::sync::Arc::new(tls))
-        .resolver(crate::api::dns::CloudflareDns)
-        .build();
+    let agent = build_agent(10);
 
     let resp = agent
         .get(VERSION_INFO_URL)

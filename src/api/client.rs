@@ -74,13 +74,18 @@ impl Client {
             }
         }
 
-        let tls_connector = native_tls::TlsConnector::new()
-            .map_err(|e| ApiError::Network(format!("TLS init error: {}", e)))?;
-        let agent = ureq::AgentBuilder::new()
+        let mut builder = ureq::AgentBuilder::new()
             .timeout(std::time::Duration::from_secs(30))
-            .tls_connector(std::sync::Arc::new(tls_connector))
-            .resolver(super::dns::CloudflareDns)
-            .build();
+            .resolver(super::dns::CloudflareDns);
+
+        #[cfg(feature = "native")]
+        {
+            let tls_connector = native_tls::TlsConnector::new()
+                .map_err(|e| ApiError::Network(format!("TLS init error: {}", e)))?;
+            builder = builder.tls_connector(std::sync::Arc::new(tls_connector));
+        }
+
+        let agent = builder.build();
 
         let mut req = match method {
             "GET" => agent.get(url),

@@ -9,12 +9,21 @@ name = "dalang"
 path = "src/main.rs"
 
 [dependencies]
-ureq = { version = "2", default-features = false, features = ["native-tls"] }
-tungstenite = { version = "0.21", default-features = false, features = ["native-tls", "handshake"] }
+ureq = { version = "2", default-features = false }
+tungstenite = { version = "0.21", default-features = false, features = ["handshake"] }
 crossterm = { version = "0.27", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-native-tls = "0.2"
+
+# TLS: use native-tls (OpenSSL) by default, rustls for cross-compilation
+[features]
+default = ["native"]
+native = ["ureq/native-tls", "tungstenite/native-tls", "dep:native-tls"]
+rustls = ["ureq/tls", "tungstenite/rustls-tls-native-roots"]
+
+[dependencies.native-tls]
+version = "0.2"
+optional = true
 
 [profile.release]
 opt-level = "z"
