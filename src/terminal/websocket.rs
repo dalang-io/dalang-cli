@@ -3,7 +3,7 @@ use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossterm::terminal;
 use tungstenite::protocol::Message;
@@ -110,6 +110,7 @@ impl Terminal {
         // Track terminal size for resize detection
         let mut last_size = terminal::size().unwrap_or((80, 24));
         let mut escape_state: u8 = 1; // start after "newline" to allow ~. at beginning
+        let mut last_ping = Instant::now();
 
         // Main loop: owns the WebSocket, no Mutex needed
         loop {
@@ -216,6 +217,12 @@ impl Terminal {
                         let _ = self.ws.send(Message::Text(json));
                     }
                 }
+            }
+
+            // 4. Send keepalive ping every 30s to prevent Cloudflare idle timeout
+            if last_ping.elapsed() >= Duration::from_secs(30) {
+                let _ = self.ws.send(Message::Ping(vec![]));
+                last_ping = Instant::now();
             }
         }
 
