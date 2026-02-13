@@ -19,7 +19,10 @@ serde_json = "1"
 [features]
 default = ["native"]
 native = ["ureq/native-tls", "tungstenite/native-tls", "dep:native-tls"]
-rustls = ["ureq/tls", "tungstenite/rustls-tls-native-roots"]
+rustls = ["ureq/tls", "tungstenite/rustls-tls-webpki-roots"]
+
+[target.'cfg(windows)'.dependencies]
+crossterm = { version = "0.27", features = ["windows"] }
 
 [dependencies.native-tls]
 version = "0.2"
