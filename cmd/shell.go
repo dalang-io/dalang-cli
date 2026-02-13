@@ -99,6 +99,40 @@ func connectTerminal(name, mode string) error {
 		displayName = foundVPS.Name
 	}
 
+	// Show resource usage before connecting
+	if strings.ToUpper(foundVPS.Status) == "RUNNING" {
+		usageResp, err := client.Get(fmt.Sprintf("/vps/usage?vps_id=%s", foundVPS.ID))
+		if err == nil {
+			var usage struct {
+				Success bool `json:"success"`
+				Data    struct {
+					CPUSeconds  float64 `json:"cpu_seconds"`
+					MemoryUsed  int64   `json:"memory_used"`
+					MemoryTotal int64   `json:"memory_total"`
+					DiskUsed    int64   `json:"disk_used"`
+					DiskTotal   int64   `json:"disk_total"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(usageResp, &usage) == nil && usage.Success {
+				d := usage.Data
+				if d.MemoryTotal > 0 || d.DiskTotal > 0 {
+					fmt.Printf("\n%s%s%s — Resource Usage\n", colorBold, displayName, colorReset)
+					if d.MemoryTotal > 0 {
+						pct := float64(d.MemoryUsed) / float64(d.MemoryTotal) * 100
+						fmt.Printf("  Memory: %s %.0f%% (%s / %s)\n",
+							renderBar(pct, 20), pct, formatBytes(d.MemoryUsed), formatBytes(d.MemoryTotal))
+					}
+					if d.DiskTotal > 0 {
+						pct := float64(d.DiskUsed) / float64(d.DiskTotal) * 100
+						fmt.Printf("  Disk:   %s %.0f%% (%s / %s)\n",
+							renderBar(pct, 20), pct, formatBytes(d.DiskUsed), formatBytes(d.DiskTotal))
+					}
+					fmt.Println()
+				}
+			}
+		}
+	}
+
 	printInfo("Connecting to %s (%s mode)...", displayName, mode)
 
 	// Connect to terminal

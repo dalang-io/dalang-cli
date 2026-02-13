@@ -61,6 +61,42 @@ func PrintDebug(format string, args ...interface{}) {
 	}
 }
 
+func renderBar(pct float64, width int) string {
+	if pct > 100 {
+		pct = 100
+	}
+	filled := int(pct / 100 * float64(width))
+	if filled > width {
+		filled = width
+	}
+	color := colorGreen
+	if pct >= 80 {
+		color = colorRed
+	} else if pct >= 60 {
+		color = colorYellow
+	}
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	return color + bar + colorReset
+}
+
+func formatBytes(b int64) string {
+	const (
+		KB = 1024
+		MB = 1024 * KB
+		GB = 1024 * MB
+	)
+	switch {
+	case b >= GB:
+		return fmt.Sprintf("%.1f GB", float64(b)/float64(GB))
+	case b >= MB:
+		return fmt.Sprintf("%.0f MB", float64(b)/float64(MB))
+	case b >= KB:
+		return fmt.Sprintf("%.0f KB", float64(b)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
 // Execute runs the CLI
 func Execute() error {
 	args := os.Args[1:]

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,10 +33,31 @@ type ResizeMessage struct {
 	Rows int    `json:"rows"`
 }
 
+// deriveOrigin derives the frontend Origin from the WebSocket URL.
+// wss://api.dalang.io -> https://dalang.io
+// wss://test-api.dalang.io -> https://test.dalang.io
+func deriveOrigin(wsURL string) string {
+	scheme := "https"
+	if strings.HasPrefix(wsURL, "ws://") {
+		scheme = "http"
+	}
+	parts := strings.SplitN(wsURL, "/", 4)
+	host := "dalang.io"
+	if len(parts) >= 3 {
+		host = parts[2]
+	}
+	if strings.HasPrefix(host, "api.") {
+		host = strings.TrimPrefix(host, "api.")
+	} else if strings.HasPrefix(host, "test-api.") {
+		host = "test." + strings.TrimPrefix(host, "test-api.")
+	}
+	return scheme + "://" + host
+}
+
 // NewTerminal creates a new terminal connection
 func NewTerminal(wsURL string) (*Terminal, error) {
 	headers := http.Header{}
-	headers.Set("Origin", "https://dalang.io")
+	headers.Set("Origin", deriveOrigin(wsURL))
 	headers.Set("User-Agent", "dalang-cli/1.0")
 
 	// Custom resolver that uses Cloudflare DNS over IPv4
@@ -95,6 +117,9 @@ func (t *Terminal) Run() error {
 
 	// Start writeLoop in background (reads from stdin, writes to WebSocket)
 	go t.writeLoop()
+
+	// Start keepalive ping every 30s to prevent Cloudflare idle timeout
+	go t.keepAlive()
 
 	// Read from WebSocket, write to stdout (this is the main loop)
 	// When WebSocket closes, this returns and we exit
@@ -198,6 +223,22 @@ func (t *Terminal) writeLoop() error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+}
+
+// keepAlive sends WebSocket ping frames every 30s to prevent Cloudflare idle timeout
+func (t *Terminal) keepAlive() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-t.done:
+			return
+		case <-ticker.C:
+			t.mu.Lock()
+			t.conn.WriteMessage(websocket.PingMessage, nil)
+			t.mu.Unlock()
 		}
 	}
 }

@@ -285,6 +285,41 @@ func serviceInfo(name string) error {
 		fmt.Printf("               Run '%sdalang domain enable %s%s' to activate (+%s/month)\n", colorCyan, name, colorReset, formatIDR(int64(foundVPS.CustomDomainPrice)))
 	}
 	fmt.Println()
+	// Fetch resource usage if running
+	if strings.ToUpper(foundVPS.Status) == "RUNNING" {
+		usageResp, err := client.Get(fmt.Sprintf("/vps/usage?vps_id=%s", foundVPS.ID))
+		if err == nil {
+			var usage struct {
+				Success bool `json:"success"`
+				Data    struct {
+					CPUSeconds  float64 `json:"cpu_seconds"`
+					MemoryUsed  int64   `json:"memory_used"`
+					MemoryTotal int64   `json:"memory_total"`
+					DiskUsed    int64   `json:"disk_used"`
+					DiskTotal   int64   `json:"disk_total"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(usageResp, &usage) == nil && usage.Success {
+				d := usage.Data
+				fmt.Printf("  %sResource Usage:%s\n", colorBold, colorReset)
+				if d.MemoryTotal > 0 {
+					pct := float64(d.MemoryUsed) / float64(d.MemoryTotal) * 100
+					fmt.Printf("    Memory:    %s  %.0f%% (%s / %s)\n",
+						renderBar(pct, 20), pct, formatBytes(d.MemoryUsed), formatBytes(d.MemoryTotal))
+				}
+				if d.DiskTotal > 0 {
+					pct := float64(d.DiskUsed) / float64(d.DiskTotal) * 100
+					fmt.Printf("    Disk:      %s  %.0f%% (%s / %s)\n",
+						renderBar(pct, 20), pct, formatBytes(d.DiskUsed), formatBytes(d.DiskTotal))
+				}
+				if d.CPUSeconds > 0 {
+					fmt.Printf("    CPU Time:  %.1f hours\n", d.CPUSeconds/3600)
+				}
+				fmt.Println()
+			}
+		}
+	}
+
 	fmt.Printf("  %sSubscription:%s\n", colorBold, colorReset)
 	fmt.Printf("    Price:     %s/month\n", formatIDR(int64(foundVPS.Price)))
 	fmt.Printf("    Expires:   %s\n", formatExpiryWithDays(foundVPS.ExpiresAt))
