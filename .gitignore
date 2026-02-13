@@ -6,6 +6,7 @@ dalang-*
 # Build output
 dist/
 build/
+target/
 
 # IDE
 .idea/

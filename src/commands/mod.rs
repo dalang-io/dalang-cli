@@ -1,0 +1,11 @@
+pub mod auth;
+pub mod credit;
+pub mod domain;
+pub mod exec;
+pub mod help;
+pub mod price;
+pub mod service;
+pub mod shell;
+pub mod update;
+pub mod version;
+pub mod vm;

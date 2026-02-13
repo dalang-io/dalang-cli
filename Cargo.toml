@@ -1,0 +1,24 @@
+[package]
+name = "dalang-cli"
+version = "0.1.0"
+edition = "2021"
+default-run = "dalang"
+
+[[bin]]
+name = "dalang"
+path = "src/main.rs"
+
+[dependencies]
+ureq = { version = "2", default-features = false, features = ["native-tls"] }
+tungstenite = { version = "0.21", default-features = false, features = ["native-tls", "handshake"] }
+crossterm = { version = "0.27", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+native-tls = "0.2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+panic = "abort"
+codegen-units = 1

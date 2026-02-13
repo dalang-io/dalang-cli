@@ -1,38 +1,54 @@
-# Dalang CLI Makefile
-
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_DATE := $(shell date -u +%Y-%m-%d)
-COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-LDFLAGS := -s -w \
-	-X main.Version=$(VERSION) \
-	-X main.BuildDate=$(BUILD_DATE) \
-	-X main.Commit=$(COMMIT)
+# Dalang CLI Makefile (Rust)
 
 BINARY_NAME := dalang
 DIST_DIR := dist
 
-# Build targets
-PLATFORMS := linux/amd64 linux/arm64 android/arm64 darwin/amd64 darwin/arm64 windows/amd64
+# Cross-compilation targets
+# Requires: rustup target add <triple> for each target
+TARGETS := \
+	x86_64-unknown-linux-musl \
+	aarch64-unknown-linux-musl \
+	aarch64-linux-android \
+	x86_64-apple-darwin \
+	aarch64-apple-darwin \
+	x86_64-pc-windows-gnu
 
-.PHONY: all build clean test dist checksums help
+# Map Rust triples to Go-style names for binary output
+define target_to_name
+$(if $(findstring x86_64-unknown-linux-musl,$1),linux-amd64,\
+$(if $(findstring aarch64-unknown-linux-musl,$1),linux-arm64,\
+$(if $(findstring aarch64-linux-android,$1),android-arm64,\
+$(if $(findstring x86_64-apple-darwin,$1),darwin-amd64,\
+$(if $(findstring aarch64-apple-darwin,$1),darwin-arm64,\
+$(if $(findstring x86_64-pc-windows-gnu,$1),windows-amd64,unknown))))))
+endef
+
+define target_ext
+$(if $(findstring windows,$1),.exe,)
+endef
+
+.PHONY: all build build-debug clean test dist checksums install uninstall version help
 
 all: build
 
-## Build for current platform
+## Build for current platform (release)
 build:
-	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) .
+	cargo build --release
+	cp target/release/$(BINARY_NAME) $(BINARY_NAME)
+	@if command -v upx >/dev/null 2>&1; then upx --best --lzma $(BINARY_NAME); fi
 
 ## Build with debug info
 build-debug:
-	go build -ldflags "-X main.Version=$(VERSION) -X main.BuildDate=$(BUILD_DATE) -X main.Commit=$(COMMIT)" -o $(BINARY_NAME) .
+	cargo build
+	cp target/debug/$(BINARY_NAME) $(BINARY_NAME)
 
 ## Run tests
 test:
-	go test -v ./...
+	cargo test
 
 ## Clean build artifacts
 clean:
+	cargo clean
 	rm -rf $(DIST_DIR)
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-*
@@ -41,19 +57,21 @@ clean:
 ## Build for all platforms
 dist: clean
 	@mkdir -p $(DIST_DIR)
-	@for platform in $(PLATFORMS); do \
-		GOOS=$$(echo $$platform | cut -d'/' -f1); \
-		GOARCH=$$(echo $$platform | cut -d'/' -f2); \
-		output_name=$(BINARY_NAME)-$$GOOS-$$GOARCH; \
-		if [ $$GOOS = "windows" ]; then output_name=$$output_name.exe; fi; \
-		echo "Building $$output_name..."; \
-		if [ $$GOOS = "android" ]; then \
-			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
-		elif [ $$GOOS = "linux" ]; then \
-			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
-		else \
-			GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
-		fi; \
+	@for target in $(TARGETS); do \
+		name=$$(echo $$target | sed \
+			-e 's/x86_64-unknown-linux-musl/linux-amd64/' \
+			-e 's/aarch64-unknown-linux-musl/linux-arm64/' \
+			-e 's/aarch64-linux-android/android-arm64/' \
+			-e 's/x86_64-apple-darwin/darwin-amd64/' \
+			-e 's/aarch64-apple-darwin/darwin-arm64/' \
+			-e 's/x86_64-pc-windows-gnu/windows-amd64/'); \
+		ext=""; \
+		if echo "$$target" | grep -q windows; then ext=".exe"; fi; \
+		output_name=$(BINARY_NAME)-$$name$$ext; \
+		echo "Building $$output_name ($$target)..."; \
+		cargo build --release --target $$target || exit 1; \
+		cp target/$$target/release/$(BINARY_NAME)$$ext $(DIST_DIR)/$$output_name || exit 1; \
+		if command -v upx >/dev/null 2>&1; then upx --best --lzma $(DIST_DIR)/$$output_name 2>/dev/null || true; fi; \
 	done
 	@echo "Build complete!"
 	@ls -la $(DIST_DIR)/
@@ -76,18 +94,16 @@ uninstall:
 
 ## Show version info
 version:
-	@echo "Version: $(VERSION)"
-	@echo "Build Date: $(BUILD_DATE)"
-	@echo "Commit: $(COMMIT)"
+	@cargo run --release -- version
 
 ## Show help
 help:
-	@echo "Dalang CLI Makefile"
+	@echo "Dalang CLI Makefile (Rust)"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  build       Build for current platform"
+	@echo "  build       Build for current platform (release)"
 	@echo "  build-debug Build with debug info"
 	@echo "  test        Run tests"
 	@echo "  clean       Clean build artifacts"
@@ -97,3 +113,13 @@ help:
 	@echo "  uninstall   Remove from /usr/local/bin"
 	@echo "  version     Show version info"
 	@echo "  help        Show this help"
+	@echo ""
+	@echo "Cross-compilation targets:"
+	@echo "  x86_64-unknown-linux-musl   (linux/amd64)"
+	@echo "  aarch64-unknown-linux-musl  (linux/arm64)"
+	@echo "  aarch64-linux-android       (android/arm64)"
+	@echo "  x86_64-apple-darwin         (darwin/amd64)"
+	@echo "  aarch64-apple-darwin        (darwin/arm64)"
+	@echo "  x86_64-pc-windows-gnu       (windows/amd64)"
+	@echo ""
+	@echo "Add targets with: rustup target add <triple>"
