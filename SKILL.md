@@ -160,6 +160,21 @@ Pay-as-you-go pricing based on resources:
 - Standard (2 vCPU, 2GB, 20GB, 40Mbps) → Rp 90.000/month
 - Pro (4 vCPU, 4GB, 50GB, 100Mbps) → Rp 230.000/month
 
+### File Transfer (SCP-like)
+```bash
+# Upload a local file to a VM
+dalang upload <vps-name> ./app.tar.gz /opt/app.tar.gz
+dalang push <vps-name> ./config.yml /etc/myapp/config.yml    # alias
+
+# Download a file from a VM
+dalang download <vps-name> /var/log/app.log ./app.log
+dalang pull <vps-name> /home/ubuntu/backup.tar.gz             # alias, saves to current dir
+```
+
+- Maximum upload size: 500 MB
+- Progress bar shown during transfer
+- VPS must be running
+
 ### Custom Domains
 ```bash
 # Enable custom domain addon (paid feature)
@@ -203,6 +218,8 @@ dalang credit add 500     # Top up 500K IDR
 | `dalang domain add <vps> <domain>` | Add custom domain |
 | `dalang domain verify <domain>` | Verify DNS setup |
 | `dalang domain remove <domain>` | Remove custom domain |
+| `dalang upload <vps> <local> <remote>` | Upload file to VM |
+| `dalang download <vps> <remote> [local]` | Download file from VM |
 | `dalang update` | Update CLI to latest version |
 | `dalang version` | Show CLI version |
 | `dalang help <command>` | Show command help |
@@ -226,6 +243,7 @@ dalang credit add 500     # Top up 500K IDR
 
 When running `dalang service info <name>`, you get:
 
+- **Auto-sync**: Automatically syncs specs and status from the cluster before displaying
 - **Status**: RUNNING, STOPPED, CREATING, UNAVAILABLE
 - **ID**: UUID of the VPS
 - **Region**: ID-BANTEN-02
@@ -297,6 +315,20 @@ dalang domain add <vps-name> example.com
 
 # 4. Verify
 dalang domain verify example.com
+```
+
+### User: "Upload my app to the server"
+```bash
+# Upload file to VM
+dalang upload <vps-name> ./app.tar.gz /opt/app.tar.gz
+
+# Then extract it via shell
+dalang exec <vps-name> "cd /opt && tar xzf app.tar.gz"
+```
+
+### User: "Download logs from my VM"
+```bash
+dalang download <vps-name> /var/log/syslog ./syslog.txt
 ```
 
 ### User: "Show me everything about my VM"

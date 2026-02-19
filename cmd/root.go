@@ -157,6 +157,10 @@ func Execute() error {
 		return cmdPrice(cmdArgs)
 	case "update":
 		return cmdUpdate(cmdArgs)
+	case "upload", "push":
+		return cmdUpload(cmdArgs)
+	case "download", "pull":
+		return cmdDownload(cmdArgs)
 	default:
 		printError("Unknown command: %s", command)
 		fmt.Println("\nRun 'dalang help' for usage.")
@@ -221,6 +225,10 @@ func printHelp() {
 	fmt.Println("    " + colorCyan + "domain verify <domain>" + colorReset + "     Verify domain DNS configuration")
 	fmt.Println("    " + colorCyan + "domain remove <domain>" + colorReset + "     Remove a custom domain")
 	fmt.Println()
+	fmt.Printf("  %sFile Transfer%s\n", colorBold, colorReset)
+	fmt.Println("    " + colorCyan + "upload <name> <local> <remote>" + colorReset + "  Upload file to VM")
+	fmt.Println("    " + colorCyan + "download <name> <remote> [local]" + colorReset + " Download file from VM")
+	fmt.Println()
 	fmt.Printf("  %sPricing%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "price" + colorReset + "                      Show VPS pricing table")
 	fmt.Println("    " + colorCyan + "price --cpu N --ram NG" + colorReset + "    Calculate price for specific config")
@@ -258,6 +266,10 @@ func printHelp() {
 	fmt.Println("  # Start/stop VM")
 	fmt.Println("  " + colorCyan + "dalang start MyVM" + colorReset)
 	fmt.Println("  " + colorCyan + "dalang stop MyVM" + colorReset)
+	fmt.Println()
+	fmt.Println("  # Upload/download files")
+	fmt.Println("  " + colorCyan + "dalang upload MyVM ./app.tar.gz /opt/app.tar.gz" + colorReset)
+	fmt.Println("  " + colorCyan + "dalang download MyVM /var/log/app.log ./app.log" + colorReset)
 	fmt.Println()
 	fmt.Println("  # Add custom domain")
 	fmt.Println("  " + colorCyan + "dalang domain enable MyVM" + colorReset)
@@ -303,6 +315,10 @@ func cmdHelpFor(command string) error {
 		printPriceHelp()
 	case "update":
 		printUpdateHelp()
+	case "upload", "push":
+		printUploadHelp()
+	case "download", "pull":
+		printDownloadHelp()
 	default:
 		printError("Unknown command: %s", command)
 		return fmt.Errorf("unknown command: %s", command)

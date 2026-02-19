@@ -196,32 +196,32 @@ func serviceInfo(name string) error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
-	// Try to find service by name in VPS list first
-	vpsResp, err := client.Get("/vps/list")
+	// Find VPS by name first
+	vps, err := findVPSByName(client, name)
 	if err != nil {
-		return fmt.Errorf("failed to fetch services: %w", err)
-	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	// Find VPS by name
-	var foundVPS *api.VPS
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			foundVPS = &v
-			break
-		}
-	}
-
-	if foundVPS == nil {
-		// TODO: Check containers and apps
 		printError("Service '%s' not found", name)
 		return fmt.Errorf("service not found: %s", name)
 	}
+
+	// Sync this specific VPS's specs/status from incus
+	syncResp, err := client.Post("/vps/sync-specs", map[string]interface{}{
+		"vps_id": vps.ID,
+	})
+	if err == nil {
+		// Re-fetch the VPS to get updated data
+		var syncResult struct {
+			Success bool `json:"success"`
+		}
+		if json.Unmarshal(syncResp, &syncResult) == nil && syncResult.Success {
+			if updated, err := findVPSByName(client, name); err == nil {
+				vps = updated
+			}
+		}
+	}
+
+	foundVPS := vps
 
 	if jsonOutput {
 		data, _ := json.MarshalIndent(foundVPS, "", "  ")

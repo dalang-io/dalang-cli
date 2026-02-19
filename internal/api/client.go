@@ -97,16 +97,21 @@ func NewAuthenticatedClient() (*Client, error) {
 	return client, nil
 }
 
-// Request makes an HTTP request to the API
-func (c *Client) Request(method, path string, body interface{}) ([]byte, error) {
-	// Don't use url.JoinPath as it encodes query strings incorrectly
+// buildURL constructs a full URL from a path
+func (c *Client) buildURL(path string) string {
 	u := c.BaseURL
 	if !strings.HasSuffix(u, "/") && !strings.HasPrefix(path, "/") {
 		u += "/"
 	} else if strings.HasSuffix(u, "/") && strings.HasPrefix(path, "/") {
 		path = path[1:]
 	}
-	u += path
+	return u + path
+}
+
+// Request makes an HTTP request to the API
+func (c *Client) Request(method, path string, body interface{}) ([]byte, error) {
+	// Don't use url.JoinPath as it encodes query strings incorrectly
+	u := c.buildURL(path)
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "[DEBUG] %s %s\n", method, u)
@@ -231,6 +236,104 @@ func (c *Client) Put(path string, body interface{}) ([]byte, error) {
 // Delete makes a DELETE request
 func (c *Client) Delete(path string) ([]byte, error) {
 	return c.Request("DELETE", path, nil)
+}
+
+// UploadMultipart makes a multipart POST request with streaming body.
+// The caller provides a pre-built multipart body and content type.
+// Uses a 15-minute timeout for large file transfers.
+func (c *Client) UploadMultipart(path, contentType string, body io.Reader) (*http.Response, error) {
+	u := c.buildURL(path)
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "[DEBUG] POST (multipart) %s\n", u)
+	}
+
+	req, err := http.NewRequest("POST", u, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("User-Agent", "dalang-cli/1.0")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	// Use a long-timeout client sharing the same transport
+	longClient := &http.Client{
+		Timeout:   15 * time.Minute,
+		Transport: c.HTTPClient.Transport,
+	}
+
+	return longClient.Do(req)
+}
+
+// StreamGet makes a GET request and returns the raw response for streaming.
+// The caller is responsible for closing resp.Body.
+// Uses a 15-minute timeout for large file transfers.
+func (c *Client) StreamGet(path string) (*http.Response, error) {
+	u := c.buildURL(path)
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "[DEBUG] GET (stream) %s\n", u)
+	}
+
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", "dalang-cli/1.0")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	longClient := &http.Client{
+		Timeout:   15 * time.Minute,
+		Transport: c.HTTPClient.Transport,
+	}
+
+	resp, err := longClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == 401 {
+		resp.Body.Close()
+		return nil, &APIError{
+			StatusCode: 401,
+			Message:    "Authentication expired. Run 'dalang auth' to re-login",
+		}
+	}
+
+	if resp.StatusCode >= 400 {
+		defer resp.Body.Close()
+		respBody, _ := io.ReadAll(resp.Body)
+		var errResp struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(respBody, &errResp) == nil {
+			msg := errResp.Error
+			if msg == "" {
+				msg = errResp.Message
+			}
+			if msg == "" {
+				msg = string(respBody)
+			}
+			return nil, &APIError{
+				StatusCode: resp.StatusCode,
+				Message:    msg,
+				Body:       string(respBody),
+			}
+		}
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Body:       string(respBody),
+		}
+	}
+
+	return resp, nil
 }
 
 // Response types
