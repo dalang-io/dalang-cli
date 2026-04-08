@@ -4,6 +4,8 @@ Command-line interface for [Dalang.io](https://dalang.io) cloud platform. Manage
 
 ## Installation
 
+Prebuilt binaries are published on [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases) for tagged versions.
+
 ### Linux / macOS
 
 ```bash
@@ -40,7 +42,21 @@ sudo mv dalang-darwin-amd64 /usr/local/bin/dalang
 irm https://dalang.io/install.ps1 | iex
 ```
 
-Or download manually from [dalang.io/cli](https://dalang.io/cli).
+Or download manually from:
+
+- [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases)
+- [dalang.io/cli](https://dalang.io/cli)
+
+### Available Release Assets
+
+Tagged releases publish these binaries:
+
+- `dalang-linux-amd64`
+- `dalang-linux-arm64`
+- `dalang-darwin-amd64`
+- `dalang-darwin-arm64`
+- `dalang-windows-amd64.exe`
+- `checksums.txt`
 
 ### Verify Installation
 
@@ -141,6 +157,10 @@ dalang update
 # Or with sudo if installed system-wide
 sudo dalang update
 ```
+
+GitHub release assets are also available at:
+
+- [https://github.com/dalang-io/dalang-cli/releases](https://github.com/dalang-io/dalang-cli/releases)
 
 ## Uninstall
 
