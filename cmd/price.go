@@ -33,11 +33,12 @@ func CalculateVPSPrice(cpu, ramMB, storageGB, bandwidthMbps int) int {
 	ramPrice := ramGB * PricePerGBRAM
 	storagePrice := storageGB * PricePerGBStorage
 
-	// Bandwidth: 20 Mbps free, +20,000 per additional 20 Mbps
+	// Bandwidth: 20 Mbps free, +20,000 per additional 20 Mbps (rounded up)
 	bandwidthPrice := 0
 	if bandwidthMbps > FreeBandwidthMbps {
-		extraBandwidth := (bandwidthMbps - FreeBandwidthMbps) / 20
-		bandwidthPrice = extraBandwidth * PricePer20Mbps
+		extra := bandwidthMbps - FreeBandwidthMbps
+		extraBlocks := (extra + 19) / 20 // round up to next 20 Mbps block
+		bandwidthPrice = extraBlocks * PricePer20Mbps
 	}
 
 	return cpuPrice + ramPrice + storagePrice + bandwidthPrice
@@ -120,11 +121,12 @@ func calculateCustomPrice(args []string) error {
 	fmt.Printf("  %-20s %10d %12s\n", "RAM (GB)", ramGB, formatIDR(int64(ramGB*PricePerGBRAM)))
 	fmt.Printf("  %-20s %10d %12s\n", "Storage (GB)", storage, formatIDR(int64(storage*PricePerGBStorage)))
 
-	// Bandwidth calculation
+	// Bandwidth calculation (rounded up to next 20 Mbps block)
 	bandwidthCost := 0
 	if bandwidth > FreeBandwidthMbps {
-		extraBandwidth := (bandwidth - FreeBandwidthMbps) / 20
-		bandwidthCost = extraBandwidth * PricePer20Mbps
+		extra := bandwidth - FreeBandwidthMbps
+		extraBlocks := (extra + 19) / 20
+		bandwidthCost = extraBlocks * PricePer20Mbps
 	}
 	bandwidthDisplay := fmt.Sprintf("%d (20 free)", bandwidth)
 	fmt.Printf("  %-20s %10s %12s\n", "Bandwidth (Mbps)", bandwidthDisplay, formatIDR(int64(bandwidthCost)))

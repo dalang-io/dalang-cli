@@ -532,17 +532,19 @@ func serviceUpgrade(name string, args []string) error {
 			}
 		case "--ram", "-r":
 			if i+1 < len(args) {
-				ram = parseSize(args[i+1]) / 1024 // Convert to GB
-				if ram == 0 {
-					ram = parseSize(args[i+1]) // Already in GB
+				ramMB := parseSize(args[i+1]) // always returns MB
+				ram = ramMB / 1024
+				if ramMB > 0 && ram == 0 {
+					ram = 1 // minimum 1 GB for sub-GB values like 512M
 				}
 				i++
 			}
 		case "--storage", "-s":
 			if i+1 < len(args) {
-				storage = parseSize(args[i+1]) / 1024
-				if storage == 0 {
-					storage = parseSize(args[i+1])
+				storageMB := parseSize(args[i+1])
+				storage = storageMB / 1024
+				if storageMB > 0 && storage == 0 {
+					storage = 1 // minimum 1 GB
 				}
 				i++
 			}

@@ -76,12 +76,12 @@ func TestCalculateVPSPrice(t *testing.T) {
 			want:          20000 + 5000 + 5000,
 		},
 		{
-			name:          "partial bandwidth block not charged",
+			name:          "partial bandwidth block rounded up",
 			cpu:           1,
 			ramMB:         1024,
 			storageGB:     5,
-			bandwidthMbps: 30, // only 10 extra, not a full 20 block
-			want:          20000 + 5000 + 5000, // integer division: (30-20)/20 = 0
+			bandwidthMbps: 30, // 10 extra, rounds up to 1 block of 20 Mbps
+			want:          20000 + 5000 + 5000 + 20000, // (10+19)/20 = 1 block
 		},
 		{
 			name:          "exact extra bandwidth block",

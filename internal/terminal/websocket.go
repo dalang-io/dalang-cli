@@ -22,6 +22,7 @@ type Terminal struct {
 	oldState     *term.State
 	done         chan struct{}
 	mu           sync.Mutex
+	restoreOnce  sync.Once
 	closeOnce    sync.Once
 	escapeState  int  // 0=normal, 1=after newline, 2=after tilde
 }
@@ -54,11 +55,17 @@ func deriveOrigin(wsURL string) string {
 	return scheme + "://" + host
 }
 
-// NewTerminal creates a new terminal connection
-func NewTerminal(wsURL string) (*Terminal, error) {
+// NewTerminal creates a new terminal connection.
+// If token is non-empty it is sent via the Authorization header
+// instead of being included in the URL query string, so that
+// proxy / CDN access-logs never capture the credential.
+func NewTerminal(wsURL string, token string) (*Terminal, error) {
 	headers := http.Header{}
 	headers.Set("Origin", deriveOrigin(wsURL))
 	headers.Set("User-Agent", "dalang-cli/1.0")
+	if token != "" {
+		headers.Set("Authorization", "Bearer "+token)
+	}
 
 	// Custom resolver that uses Cloudflare DNS over IPv4
 	resolver := &net.Resolver{
@@ -140,14 +147,8 @@ func (t *Terminal) readLoop() error {
 		default:
 			_, message, err := t.conn.ReadMessage()
 			if err != nil {
-				// Restore terminal first
-				t.restore()
 				t.closeDone()
-
 				fmt.Println("\r\nConnection closed.")
-
-				// Force exit - stdin read is blocking and can't be interrupted
-				os.Exit(0)
 				return err
 			}
 
@@ -166,7 +167,11 @@ func (t *Terminal) readLoop() error {
 	}
 }
 
-// writeLoop reads from stdin and writes to WebSocket
+// writeLoop reads from stdin and writes to WebSocket.
+// It detects the SSH-style escape sequence ~. (tilde-dot after newline)
+// and signals termination through the done channel instead of calling os.Exit.
+// The tilde is buffered until the next character is known, so it is never
+// sent to the remote when it is part of an escape sequence.
 func (t *Terminal) writeLoop() error {
 	buf := make([]byte, 1024)
 	t.escapeState = 1 // Start after "newline" to allow ~. at very beginning
@@ -184,44 +189,56 @@ func (t *Terminal) writeLoop() error {
 				return err
 			}
 
-			// Check for SSH-style escape sequence: ~. after newline
-			// State machine: 0=normal, 1=after newline, 2=after tilde
+			// Build output, filtering escape-sequence bytes.
+			// The tilde after a newline is held back: if the next char
+			// is '.', we disconnect; otherwise the held tilde is flushed.
+			out := make([]byte, 0, n)
+
 			for i := 0; i < n; i++ {
+				ch := buf[i]
 				switch t.escapeState {
 				case 1: // After newline
-					if buf[i] == '~' {
+					if ch == '~' {
 						t.escapeState = 2
+						// Hold the tilde — do not append yet
 						continue
-					} else if buf[i] == '\r' || buf[i] == '\n' {
+					} else if ch == '\r' || ch == '\n' {
 						t.escapeState = 1
 					} else {
 						t.escapeState = 0
 					}
-				case 2: // After tilde
-					if buf[i] == '.' {
-						// Escape sequence detected - disconnect
-						t.restore()
+					out = append(out, ch)
+				case 2: // After tilde (held)
+					if ch == '.' {
+						// Escape sequence detected — disconnect gracefully
+						t.closeDone()
 						fmt.Println("\r\nConnection closed.")
-						os.Exit(0)
 						return nil
-					} else if buf[i] == '\r' || buf[i] == '\n' {
+					}
+					// Not an escape — flush the held tilde, then this char
+					out = append(out, '~')
+					if ch == '\r' || ch == '\n' {
 						t.escapeState = 1
 					} else {
 						t.escapeState = 0
 					}
+					out = append(out, ch)
 				default: // Normal
-					if buf[i] == '\r' || buf[i] == '\n' {
+					if ch == '\r' || ch == '\n' {
 						t.escapeState = 1
 					}
+					out = append(out, ch)
 				}
 			}
 
-			t.mu.Lock()
-			err = t.conn.WriteMessage(websocket.TextMessage, buf[:n])
-			t.mu.Unlock()
+			if len(out) > 0 {
+				t.mu.Lock()
+				err = t.conn.WriteMessage(websocket.TextMessage, out)
+				t.mu.Unlock()
 
-			if err != nil {
-				return err
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -292,11 +309,14 @@ func (t *Terminal) Close() {
 	t.mu.Unlock()
 }
 
-// restore restores terminal state
+// restore restores terminal state. Safe to call from multiple goroutines;
+// the actual restore happens at most once.
 func (t *Terminal) restore() {
-	if t.oldState != nil {
-		fd := int(os.Stdin.Fd())
-		term.Restore(fd, t.oldState)
-		t.oldState = nil
-	}
+	t.restoreOnce.Do(func() {
+		if t.oldState != nil {
+			fd := int(os.Stdin.Fd())
+			term.Restore(fd, t.oldState)
+			t.oldState = nil
+		}
+	})
 }

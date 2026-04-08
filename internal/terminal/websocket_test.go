@@ -97,3 +97,22 @@ func TestTerminalCloseDone(t *testing.T) {
 		t.Fatal("done channel should be closed")
 	}
 }
+
+func TestTerminalRestoreSafeToCallMultipleTimes(t *testing.T) {
+	term := &Terminal{
+		done: make(chan struct{}),
+	}
+
+	// restore() with nil oldState should not panic, even called multiple times
+	term.restore()
+	term.restore()
+}
+
+func TestNewTerminalSignature(t *testing.T) {
+	// Verify NewTerminal accepts a token parameter (fix #10).
+	// We can't actually connect, but we verify the function signature compiles.
+	_, err := NewTerminal("wss://invalid.example.com/ws", "test-token")
+	if err == nil {
+		t.Fatal("expected error connecting to invalid host")
+	}
+}

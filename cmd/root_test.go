@@ -60,6 +60,13 @@ func TestRenderBar(t *testing.T) {
 	if got != want {
 		t.Fatalf("unexpected normal bar: got %q want %q", got, want)
 	}
+
+	// Negative percentage should not panic (fix #12)
+	got = renderBar(-10, 5)
+	want = colorGreen + "░░░░░" + colorReset
+	if got != want {
+		t.Fatalf("unexpected negative bar: got %q want %q", got, want)
+	}
 }
 
 func TestFormatBytes(t *testing.T) {

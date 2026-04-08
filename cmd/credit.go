@@ -192,15 +192,21 @@ func creditAdd(amountStr string) error {
 }
 
 func formatIDR(amount int64) string {
+	prefix := "Rp "
+	if amount < 0 {
+		prefix = "Rp -"
+		amount = -amount
+	}
+
 	// Format with thousand separators
 	str := fmt.Sprintf("%d", amount)
 	n := len(str)
 	if n <= 3 {
-		return "Rp " + str
+		return prefix + str
 	}
 
 	var result strings.Builder
-	result.WriteString("Rp ")
+	result.WriteString(prefix)
 
 	remainder := n % 3
 	if remainder > 0 {

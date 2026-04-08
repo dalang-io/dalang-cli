@@ -67,7 +67,7 @@ func vmAction(name, action string) error {
 		return err
 	}
 
-	printInfo("%sing %s...", strings.Title(action), displayName)
+	printInfo("%sing %s...", strings.ToUpper(action[:1])+action[1:], displayName)
 
 	resp, err := client.Post("/vps/action", map[string]interface{}{
 		"id":     vpsID,

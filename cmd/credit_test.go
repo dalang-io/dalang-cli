@@ -18,6 +18,9 @@ func TestFormatIDR(t *testing.T) {
 		{name: "one digit", amount: 1, want: "Rp 1"},
 		{name: "two digits", amount: 50, want: "Rp 50"},
 		{name: "exact thousands boundary", amount: 1000, want: "Rp 1.000"},
+		{name: "negative small", amount: -500, want: "Rp -500"},
+		{name: "negative thousands", amount: -50000, want: "Rp -50.000"},
+		{name: "negative millions", amount: -1234567, want: "Rp -1.234.567"},
 	}
 
 	for _, tt := range tests {

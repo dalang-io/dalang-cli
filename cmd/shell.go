@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -85,14 +84,13 @@ func connectTerminal(name, mode string) error {
 	wsURL := strings.Replace(apiURL, "https://", "wss://", 1)
 	wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
 
-	wsURL = fmt.Sprintf("%s/vps/terminal?uuid=%s&token=%s&mode=%s&force=true",
+	wsURL = fmt.Sprintf("%s/vps/terminal?uuid=%s&mode=%s&force=true",
 		wsURL,
 		foundVPS.ID,
-		url.QueryEscape(creds.AccessToken),
 		mode,
 	)
 
-	PrintDebug("WebSocket URL: %s", strings.Replace(wsURL, creds.AccessToken, "[TOKEN]", 1))
+	PrintDebug("WebSocket URL: %s", wsURL)
 
 	displayName := foundVPS.DisplayName
 	if displayName == "" {
@@ -136,7 +134,7 @@ func connectTerminal(name, mode string) error {
 	printInfo("Connecting to %s (%s mode)...", displayName, mode)
 
 	// Connect to terminal
-	term, err := terminal.NewTerminal(wsURL)
+	term, err := terminal.NewTerminal(wsURL, creds.AccessToken)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
@@ -153,15 +151,14 @@ func connectTerminal(name, mode string) error {
 		setupResizeHandler(sigChan, term)
 	}
 
-	// Handle interrupt - force exit on Ctrl+C
+	// Handle interrupt — Ctrl+C triggers graceful close
 	go func() {
 		<-sigChan
 		term.Close()
 		fmt.Println("\r\nDisconnected.")
-		os.Exit(0)
 	}()
 
-	// Run terminal
+	// Run terminal (blocks until connection closes or escape sequence)
 	if err := term.Run(); err != nil {
 		if err.Error() != "websocket: close 1000 (normal)" {
 			return fmt.Errorf("terminal error: %w", err)

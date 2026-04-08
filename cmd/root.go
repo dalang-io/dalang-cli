@@ -25,7 +25,8 @@ const (
 	colorBold   = "\033[1m"
 )
 
-// Global flags
+// Global flags — set once per Execute() call; not safe for concurrent use.
+// Tests must call resetGlobalFlags() in Cleanup to avoid state leakage.
 var (
 	jsonOutput    bool
 	quietOutput   bool
@@ -62,6 +63,9 @@ func PrintDebug(format string, args ...interface{}) {
 }
 
 func renderBar(pct float64, width int) string {
+	if pct < 0 {
+		pct = 0
+	}
 	if pct > 100 {
 		pct = 100
 	}

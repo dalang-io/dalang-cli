@@ -145,11 +145,11 @@ func (c *Client) Request(method, path string, body interface{}) ([]byte, error) 
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 		if c.Verbose {
-			tokenPreview := c.Token
-			if len(tokenPreview) > 20 {
-				tokenPreview = tokenPreview[:20] + "..."
+			masked := c.Token
+			if len(masked) > 4 {
+				masked = "***" + masked[len(masked)-4:]
 			}
-			fmt.Fprintf(os.Stderr, "[DEBUG] Auth: Bearer %s\n", tokenPreview)
+			fmt.Fprintf(os.Stderr, "[DEBUG] Auth: Bearer %s\n", masked)
 		}
 	}
 

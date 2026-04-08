@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -196,7 +197,7 @@ func cmdDownload(args []string) error {
 
 	printInfo("Downloading %s:%s to %s", vpsName, remotePath, localPath)
 
-	path := fmt.Sprintf("/vps/file/download?vps_id=%s&remote_path=%s", vps.ID, remotePath)
+	path := fmt.Sprintf("/vps/file/download?vps_id=%s&remote_path=%s", vps.ID, url.QueryEscape(remotePath))
 	resp, err := client.StreamGet(path)
 	if err != nil {
 		return fmt.Errorf("download failed: %w", err)

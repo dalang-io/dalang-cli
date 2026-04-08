@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,10 +82,32 @@ func cmdUpdate(args []string) error {
 		return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 	}
 
-	_, err = io.Copy(tmpFile, resp.Body)
+	hash := sha256.New()
+	_, err = io.Copy(io.MultiWriter(tmpFile, hash), resp.Body)
 	tmpFile.Close()
 	if err != nil {
 		return fmt.Errorf("failed to save download: %w", err)
+	}
+
+	// Verify checksum
+	checksumURL := downloadURL + ".sha256"
+	checksumResp, err := http.Get(checksumURL)
+	if err == nil {
+		defer checksumResp.Body.Close()
+		if checksumResp.StatusCode == http.StatusOK {
+			checksumBody, _ := io.ReadAll(checksumResp.Body)
+			// Format: "<hex>  filename" or just "<hex>"
+			expectedHex := strings.TrimSpace(strings.SplitN(string(checksumBody), " ", 2)[0])
+			actualHex := hex.EncodeToString(hash.Sum(nil))
+			if !strings.EqualFold(expectedHex, actualHex) {
+				return fmt.Errorf("checksum mismatch: expected %s, got %s — download may be corrupted", expectedHex, actualHex)
+			}
+			PrintDebug("Checksum verified: %s", actualHex)
+		} else {
+			printWarn("Checksum file not available (HTTP %d), skipping verification", checksumResp.StatusCode)
+		}
+	} else {
+		printWarn("Could not fetch checksum: %v, skipping verification", err)
 	}
 
 	// Make executable
@@ -146,22 +170,15 @@ func getLatestVersion() (*VersionInfo, error) {
 }
 
 func getBinaryName() string {
-	os := runtime.GOOS
+	goos := runtime.GOOS
 	arch := runtime.GOARCH
 
-	// Normalize arch names
-	if arch == "amd64" {
-		arch = "amd64"
-	} else if arch == "arm64" {
-		arch = "arm64"
-	}
-
 	ext := ""
-	if os == "windows" {
+	if goos == "windows" {
 		ext = ".exe"
 	}
 
-	return fmt.Sprintf("dalang-%s-%s%s", os, arch, ext)
+	return fmt.Sprintf("dalang-%s-%s%s", goos, arch, ext)
 }
 
 func printUpdateHelp() {
@@ -190,7 +207,3 @@ func printUpdateHelp() {
 	)
 }
 
-func init() {
-	// Ensure os is imported for runtime check
-	_ = strings.TrimSpace
-}
