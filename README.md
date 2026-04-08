@@ -12,26 +12,26 @@ Prebuilt binaries are published on [GitHub Releases](https://github.com/dalang-i
 curl -fsSL https://dalang.io/install.sh | sh
 ```
 
-Or download manually:
+Or download manually from [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases):
 
 ```bash
 # Linux (x86_64)
-curl -LO https://dalang.io/cli/dalang-linux-amd64
+curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-linux-amd64
 chmod +x dalang-linux-amd64
 sudo mv dalang-linux-amd64 /usr/local/bin/dalang
 
 # Linux (ARM64)
-curl -LO https://dalang.io/cli/dalang-linux-arm64
+curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-linux-arm64
 chmod +x dalang-linux-arm64
 sudo mv dalang-linux-arm64 /usr/local/bin/dalang
 
 # macOS (Apple Silicon)
-curl -LO https://dalang.io/cli/dalang-darwin-arm64
+curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-darwin-arm64
 chmod +x dalang-darwin-arm64
 sudo mv dalang-darwin-arm64 /usr/local/bin/dalang
 
 # macOS (Intel)
-curl -LO https://dalang.io/cli/dalang-darwin-amd64
+curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-darwin-amd64
 chmod +x dalang-darwin-amd64
 sudo mv dalang-darwin-amd64 /usr/local/bin/dalang
 ```
@@ -42,10 +42,7 @@ sudo mv dalang-darwin-amd64 /usr/local/bin/dalang
 irm https://dalang.io/install.ps1 | iex
 ```
 
-Or download manually from:
-
-- [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases)
-- [dalang.io/cli](https://dalang.io/cli)
+Or download manually from [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases).
 
 ### Available Release Assets
 
@@ -158,7 +155,7 @@ dalang update
 sudo dalang update
 ```
 
-GitHub release assets are also available at:
+GitHub release assets are available at:
 
 - [https://github.com/dalang-io/dalang-cli/releases](https://github.com/dalang-io/dalang-cli/releases)
 
