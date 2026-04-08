@@ -15,15 +15,15 @@ import (
 )
 
 const (
-	updateBaseURL   = "https://dalang.io/cli"
-	versionInfoURL  = "https://dalang.io/cli/version.json"
+	githubRepo     = "dalang-io/dalang-cli"
+	updateBaseURL  = "https://github.com/" + githubRepo + "/releases/latest/download"
+	versionInfoURL = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
 )
 
 var updateHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
 type VersionInfo struct {
-	Version   string `json:"version"`
-	BuildDate string `json:"build_date"`
+	Version string `json:"tag_name"`
 }
 
 func cmdUpdate(args []string) error {
@@ -92,8 +92,8 @@ func cmdUpdate(args []string) error {
 		return fmt.Errorf("failed to save download: %w", err)
 	}
 
-	// Verify checksum
-	checksumURL := downloadURL + ".sha256"
+	// Verify checksum against checksums.txt published with the release
+	checksumURL := updateBaseURL + "/checksums.txt"
 	checksumResp, err := updateHTTPClient.Get(checksumURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch checksum: %w", err)
@@ -106,8 +106,17 @@ func cmdUpdate(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read checksum: %w", err)
 	}
-	// Format: "<hex>  filename" or just "<hex>"
-	expectedHex := strings.TrimSpace(strings.SplitN(string(checksumBody), " ", 2)[0])
+	expectedHex := ""
+	for _, line := range strings.Split(string(checksumBody), "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) >= 2 && fields[len(fields)-1] == binaryName {
+			expectedHex = fields[0]
+			break
+		}
+	}
+	if expectedHex == "" {
+		return fmt.Errorf("checksum for %s not found in checksums.txt", binaryName)
+	}
 	actualHex := hex.EncodeToString(hash.Sum(nil))
 	if !strings.EqualFold(expectedHex, actualHex) {
 		return fmt.Errorf("checksum mismatch: expected %s, got %s — download may be corrupted", expectedHex, actualHex)
@@ -168,6 +177,9 @@ func getLatestVersion() (*VersionInfo, error) {
 	var info VersionInfo
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		return nil, err
+	}
+	if info.Version == "" {
+		return nil, fmt.Errorf("latest release tag not found")
 	}
 
 	return &info, nil

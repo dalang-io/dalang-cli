@@ -1,20 +1,13 @@
 #!/bin/sh
 # Dalang CLI Installer
-# Usage: curl -fsSL https://dalang.io/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.sh | sh
 
 set -e
 
-DOWNLOAD_BASE="https://dalang.io/cli"
+DOWNLOAD_BASE="https://github.com/dalang-io/dalang-cli/releases/latest/download"
 BINARY_NAME="dalang"
 
-# Detect Termux environment and set install directory
-if [ -n "$TERMUX_VERSION" ] || [ -d "/data/data/com.termux" ]; then
-    INSTALL_DIR="/data/data/com.termux/files/usr/bin"
-    IS_TERMUX=1
-else
-    INSTALL_DIR="/usr/local/bin"
-    IS_TERMUX=0
-fi
+INSTALL_DIR="/usr/local/bin"
 
 # Colors
 RED='\033[0;31m'
@@ -48,11 +41,6 @@ detect_os() {
         Darwin*) echo "darwin" ;;
         *)       error "Unsupported OS: $OS. Use Windows instructions from README." ;;
     esac
-}
-
-# Check if running in Termux
-is_termux() {
-    [ "$IS_TERMUX" = "1" ]
 }
 
 # Detect architecture
@@ -90,13 +78,7 @@ main() {
     OS=$(detect_os)
     ARCH=$(detect_arch)
 
-    # Use android build for Termux
-    if is_termux; then
-        OS="android"
-        info "Detected: ${OS}/${ARCH} (Termux)"
-    else
-        info "Detected: ${OS}/${ARCH}"
-    fi
+    info "Detected: ${OS}/${ARCH}"
 
     # Construct download URL
     BINARY="dalang-${OS}-${ARCH}"
@@ -119,18 +101,16 @@ main() {
     # Make executable
     chmod +x "$TMP_FILE"
 
-    # Check if we need sudo (not needed in Termux)
+    # Check if we need sudo
     NEED_SUDO=""
-    if is_termux; then
-        info "Installing to ${INSTALL_DIR} (Termux)"
-    elif [ ! -w "$INSTALL_DIR" ]; then
+    if [ ! -w "$INSTALL_DIR" ]; then
         NEED_SUDO="sudo"
         info "Installing to ${INSTALL_DIR} (requires sudo)"
     else
         info "Installing to ${INSTALL_DIR}"
     fi
 
-    # Ensure install directory exists (for Termux)
+    # Ensure install directory exists
     if [ ! -d "$INSTALL_DIR" ]; then
         if [ -n "$NEED_SUDO" ]; then
             sudo mkdir -p "$INSTALL_DIR"

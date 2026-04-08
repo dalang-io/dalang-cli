@@ -1,10 +1,10 @@
 # Dalang CLI Installer for Windows
-# Usage: irm https://dalang.io/install.ps1 | iex
-# Or: Invoke-WebRequest -Uri https://dalang.io/install.ps1 -UseBasicParsing | Invoke-Expression
+# Usage: irm https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.ps1 | iex
+# Or: Invoke-WebRequest -Uri https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.ps1 -UseBasicParsing | Invoke-Expression
 
 $ErrorActionPreference = "Stop"
 
-$DownloadBase = "https://dalang.io/cli"
+$DownloadBase = "https://github.com/dalang-io/dalang-cli/releases/latest/download"
 $BinaryName = "dalang.exe"
 
 function Write-Info { param($Message) Write-Host "[INFO] " -ForegroundColor Blue -NoNewline; Write-Host $Message }

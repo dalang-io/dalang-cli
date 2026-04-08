@@ -9,7 +9,7 @@ Prebuilt binaries are published on [GitHub Releases](https://github.com/dalang-i
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://dalang.io/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.sh | sh
 ```
 
 Or download manually from [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases):
@@ -39,7 +39,7 @@ sudo mv dalang-darwin-amd64 /usr/local/bin/dalang
 ### Windows
 
 ```powershell
-irm https://dalang.io/install.ps1 | iex
+irm https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.ps1 | iex
 ```
 
 Or download manually from [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases).

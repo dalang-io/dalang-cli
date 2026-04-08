@@ -32,15 +32,11 @@ func TestGetBinaryName(t *testing.T) {
 
 func TestVersionInfoStruct(t *testing.T) {
 	info := VersionInfo{
-		Version:   "1.2.3",
-		BuildDate: "2025-01-01",
+		Version: "v1.2.3",
 	}
 
-	if info.Version != "1.2.3" {
+	if info.Version != "v1.2.3" {
 		t.Fatalf("unexpected version: %s", info.Version)
-	}
-	if info.BuildDate != "2025-01-01" {
-		t.Fatalf("unexpected build date: %s", info.BuildDate)
 	}
 }
 

@@ -101,12 +101,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-
-      - name: Flatten artifact directories
-        shell: bash
-        run: |
-          find dist -mindepth 2 -type f -exec mv -t dist {} +
-          find dist -mindepth 1 -type d -empty -delete
+          merge-multiple: true
 
       - name: Create checksums
         shell: bash
