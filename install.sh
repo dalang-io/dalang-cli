@@ -33,8 +33,17 @@ error() {
     exit 1
 }
 
+is_termux() {
+    [ -n "${TERMUX_VERSION:-}" ] || [ "${PREFIX:-}" = "/data/data/com.termux/files/usr" ]
+}
+
 # Detect OS
 detect_os() {
+    if is_termux; then
+        echo "android"
+        return
+    fi
+
     OS="$(uname -s)"
     case "$OS" in
         Linux*)  echo "linux" ;;
@@ -55,11 +64,23 @@ detect_arch() {
 
 # Check for required commands
 check_requirements() {
-    for cmd in curl uname chmod; do
+    for cmd in curl uname chmod mktemp; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             error "Required command not found: $cmd"
         fi
     done
+}
+
+get_install_dir() {
+    if is_termux; then
+        if [ -z "${PREFIX:-}" ]; then
+            error "Termux detected but PREFIX is not set."
+        fi
+        echo "${PREFIX}/bin"
+        return
+    fi
+
+    echo "/usr/local/bin"
 }
 
 
@@ -77,6 +98,7 @@ main() {
 
     OS=$(detect_os)
     ARCH=$(detect_arch)
+    INSTALL_DIR=$(get_install_dir)
 
     info "Detected: ${OS}/${ARCH}"
 
@@ -103,7 +125,10 @@ main() {
 
     # Check if we need sudo
     NEED_SUDO=""
-    if [ ! -w "$INSTALL_DIR" ]; then
+    if is_termux; then
+        info "Termux environment detected"
+        info "Installing to ${INSTALL_DIR}"
+    elif [ ! -w "$INSTALL_DIR" ]; then
         NEED_SUDO="sudo"
         info "Installing to ${INSTALL_DIR} (requires sudo)"
     else

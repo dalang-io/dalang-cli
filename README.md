@@ -6,7 +6,7 @@ Command-line interface for [Dalang.io](https://dalang.io) cloud platform. Manage
 
 Prebuilt binaries are published on [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases) for tagged versions.
 
-### Linux / macOS
+### Linux / macOS / Termux
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.sh | sh
@@ -24,6 +24,11 @@ sudo mv dalang-linux-amd64 /usr/local/bin/dalang
 curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-linux-arm64
 chmod +x dalang-linux-arm64
 sudo mv dalang-linux-arm64 /usr/local/bin/dalang
+
+# Android / Termux (ARM64)
+curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-android-arm64
+chmod +x dalang-android-arm64
+mv dalang-android-arm64 $PREFIX/bin/dalang
 
 # macOS (Apple Silicon)
 curl -LO https://github.com/dalang-io/dalang-cli/releases/latest/download/dalang-darwin-arm64
@@ -44,12 +49,19 @@ irm https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.ps1 | ie
 
 Or download manually from [GitHub Releases](https://github.com/dalang-io/dalang-cli/releases).
 
+### Termux Notes
+
+- The installer auto-detects Termux and installs into `$PREFIX/bin`
+- No `sudo` is required in Termux
+- Releases publish `dalang-android-arm64` for Android ARM64 devices
+
 ### Available Release Assets
 
 Tagged releases publish these binaries:
 
 - `dalang-linux-amd64`
 - `dalang-linux-arm64`
+- `dalang-android-arm64`
 - `dalang-darwin-amd64`
 - `dalang-darwin-arm64`
 - `dalang-windows-amd64.exe`
@@ -153,6 +165,9 @@ dalang update
 
 # Or with sudo if installed system-wide
 sudo dalang update
+
+# In Termux, sudo is not needed
+dalang update
 ```
 
 GitHub release assets are available at:
@@ -166,6 +181,10 @@ GitHub release assets are available at:
 sudo rm /usr/local/bin/dalang
 rm -rf ~/.dalang
 
+# Termux
+rm -f $PREFIX/bin/dalang
+rm -rf ~/.dalang
+
 # Windows
 del %USERPROFILE%\bin\dalang.exe
 rmdir /s %USERPROFILE%\.dalang
@@ -175,6 +194,7 @@ rmdir /s %USERPROFILE%\.dalang
 
 Credentials are stored in:
 - Linux/macOS: `~/.dalang/credentials`
+- Android/Termux: `~/.dalang/credentials`
 - Windows: `%USERPROFILE%\.dalang\credentials`
 
 ## Environment Variables

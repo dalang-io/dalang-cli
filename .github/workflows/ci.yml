@@ -38,6 +38,9 @@ jobs:
           - goos: linux
             goarch: arm64
             artifact_name: dalang-linux-arm64
+          - goos: android
+            goarch: arm64
+            artifact_name: dalang-android-arm64
           - goos: darwin
             goarch: amd64
             artifact_name: dalang-darwin-amd64
@@ -115,6 +118,7 @@ jobs:
           files: |
             dist/dalang-linux-amd64
             dist/dalang-linux-arm64
+            dist/dalang-android-arm64
             dist/dalang-darwin-amd64
             dist/dalang-darwin-arm64
             dist/dalang-windows-amd64.exe
