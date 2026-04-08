@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -102,7 +103,7 @@ func domainEnable(vpsName string) error {
 
 	if !result.Success {
 		printError(result.Message)
-		return fmt.Errorf(result.Message)
+		return errors.New(result.Message)
 	}
 
 	if jsonOutput {
@@ -238,7 +239,7 @@ func domainAdd(vpsName, domain string) error {
 
 	if !result.Success {
 		printError(result.Message)
-		return fmt.Errorf(result.Message)
+		return errors.New(result.Message)
 	}
 
 	if jsonOutput {
@@ -354,7 +355,7 @@ func domainRemove(domain string) error {
 
 	if !result.Success {
 		printError(result.Message)
-		return fmt.Errorf(result.Message)
+		return errors.New(result.Message)
 	}
 
 	printSuccess("Domain removed successfully")
