@@ -96,6 +96,7 @@ func vmAction(name, action string) error {
 		printSuccess("VPS %s command sent successfully", action)
 	} else {
 		printError("Failed: %s", result.Message)
+		return fmt.Errorf("vps %s failed: %s", action, result.Message)
 	}
 
 	return nil
@@ -138,6 +139,7 @@ func vmDelete(name string) error {
 		printSuccess("VPS '%s' deleted successfully", displayName)
 	} else {
 		printError("Failed: %s", result.Message)
+		return fmt.Errorf("delete failed: %s", result.Message)
 	}
 
 	return nil

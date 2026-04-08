@@ -2,12 +2,10 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -42,22 +40,6 @@ func (e *APIError) Error() string {
 func NewClient() (*Client, error) {
 	baseURL := config.GetAPIURL()
 
-	// Custom resolver that uses Cloudflare DNS over IPv4
-	resolver := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{Timeout: 10 * time.Second}
-			return d.DialContext(ctx, "udp4", "1.1.1.1:53")
-		},
-	}
-
-	// Custom dialer that forces IPv4 and uses custom resolver
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-		Resolver:  resolver,
-	}
-
 	client := &Client{
 		BaseURL: baseURL,
 		HTTPClient: &http.Client{
@@ -65,10 +47,6 @@ func NewClient() (*Client, error) {
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					MinVersion: tls.VersionTLS12,
-				},
-				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					// Force IPv4 by using "tcp4" instead of "tcp"
-					return dialer.DialContext(ctx, "tcp4", addr)
 				},
 			},
 		},

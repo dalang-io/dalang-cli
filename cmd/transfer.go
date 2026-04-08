@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -210,11 +212,16 @@ func cmdDownload(args []string) error {
 		totalSize, _ = strconv.ParseInt(cl, 10, 64)
 	}
 
-	// Create local file
-	outFile, err := os.Create(localPath)
+	destDir := filepath.Dir(localPath)
+	outFile, err := os.CreateTemp(destDir, ".dalang-download-*")
 	if err != nil {
-		return fmt.Errorf("failed to create local file: %w", err)
+		return fmt.Errorf("failed to create temporary file: %w", err)
 	}
+	tmpPath := outFile.Name()
+	defer func() {
+		_ = outFile.Close()
+		_ = os.Remove(tmpPath)
+	}()
 
 	progress := &progressCounter{
 		total: totalSize,
@@ -222,14 +229,19 @@ func cmdDownload(args []string) error {
 	}
 
 	_, err = io.Copy(outFile, io.TeeReader(resp.Body, progress))
-	outFile.Close()
+	if closeErr := outFile.Close(); err == nil && closeErr != nil {
+		err = closeErr
+	}
 
 	if err != nil {
-		os.Remove(localPath)
 		return fmt.Errorf("download failed: %w", err)
 	}
 
 	progress.finish()
+
+	if err := installDownloadedFile(tmpPath, localPath); err != nil {
+		return err
+	}
 
 	// Get final file size
 	fi, _ := os.Stat(localPath)
@@ -237,6 +249,38 @@ func cmdDownload(args []string) error {
 		printSuccess("Downloaded %s (%s)", localPath, formatBytes(fi.Size()))
 	} else {
 		printSuccess("Downloaded %s", localPath)
+	}
+
+	return nil
+}
+
+func installDownloadedFile(tmpPath, localPath string) error {
+	if err := os.Rename(tmpPath, localPath); err == nil {
+		return nil
+	} else if runtime.GOOS != "windows" && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("failed to install downloaded file: %w", err)
+	}
+
+	backupPath := localPath + ".bak"
+	backupCreated := false
+
+	if _, err := os.Stat(localPath); err == nil {
+		_ = os.Remove(backupPath)
+		if err := os.Rename(localPath, backupPath); err != nil {
+			return fmt.Errorf("failed to prepare destination file: %w", err)
+		}
+		backupCreated = true
+	}
+
+	if err := os.Rename(tmpPath, localPath); err != nil {
+		if backupCreated {
+			_ = os.Rename(backupPath, localPath)
+		}
+		return fmt.Errorf("failed to install downloaded file: %w", err)
+	}
+
+	if backupCreated {
+		_ = os.Remove(backupPath)
 	}
 
 	return nil

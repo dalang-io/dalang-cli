@@ -63,16 +63,19 @@ func serviceList() error {
 	client.Verbose = VerboseOutput
 
 	var services []UnifiedService
+	var fetchFailures []string
 
 	// Fetch VPS
 	PrintDebug("Fetching VPS list...")
 	vpsResp, err := client.Get("/vps/list")
 	if err != nil {
 		PrintDebug("VPS fetch error: %v", err)
+		fetchFailures = append(fetchFailures, fmt.Sprintf("vps: %v", err))
 	} else {
 		var vpsData api.VPSListResponse
 		if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
 			PrintDebug("VPS parse error: %v", err)
+			fetchFailures = append(fetchFailures, fmt.Sprintf("vps parse: %v", err))
 		} else {
 			PrintDebug("Found %d VPS", len(vpsData.Data))
 			for _, v := range vpsData.Data {
@@ -97,10 +100,12 @@ func serviceList() error {
 	contResp, err := client.Get("/containers/list")
 	if err != nil {
 		PrintDebug("Containers fetch error: %v", err)
+		fetchFailures = append(fetchFailures, fmt.Sprintf("containers: %v", err))
 	} else {
 		var contData api.ContainerListResponse
 		if err := json.Unmarshal(contResp, &contData); err != nil {
 			PrintDebug("Containers parse error: %v", err)
+			fetchFailures = append(fetchFailures, fmt.Sprintf("containers parse: %v", err))
 		} else {
 			PrintDebug("Found %d containers", len(contData.Data.Containers))
 			for _, c := range contData.Data.Containers {
@@ -121,10 +126,12 @@ func serviceList() error {
 	appResp, err := client.Get("/github/deployments")
 	if err != nil {
 		PrintDebug("Deployments fetch error: %v", err)
+		fetchFailures = append(fetchFailures, fmt.Sprintf("deployments: %v", err))
 	} else {
 		var appData api.DeploymentListResponse
 		if err := json.Unmarshal(appResp, &appData); err != nil {
 			PrintDebug("Deployments parse error: %v", err)
+			fetchFailures = append(fetchFailures, fmt.Sprintf("deployments parse: %v", err))
 		} else {
 			PrintDebug("Found %d deployments", len(appData.Data))
 			for _, d := range appData.Data {
@@ -140,10 +147,19 @@ func serviceList() error {
 		}
 	}
 
+	if len(services) == 0 && len(fetchFailures) > 0 {
+		return fmt.Errorf("failed to fetch services: %s", strings.Join(fetchFailures, "; "))
+	}
+
 	if jsonOutput {
 		data, _ := json.MarshalIndent(services, "", "  ")
 		fmt.Println(string(data))
 		return nil
+	}
+
+	if len(fetchFailures) > 0 {
+		printWarn("Some services could not be loaded")
+		PrintDebug("Partial fetch failures: %s", strings.Join(fetchFailures, "; "))
 	}
 
 	if len(services) == 0 {

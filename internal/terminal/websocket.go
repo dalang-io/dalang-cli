@@ -1,11 +1,9 @@
 package terminal
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -67,26 +65,7 @@ func NewTerminal(wsURL string, token string) (*Terminal, error) {
 		headers.Set("Authorization", "Bearer "+token)
 	}
 
-	// Custom resolver that uses Cloudflare DNS over IPv4
-	resolver := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{Timeout: 10 * time.Second}
-			return d.DialContext(ctx, "udp4", "1.1.1.1:53")
-		},
-	}
-
-	// Custom dialer that forces IPv4 and uses custom resolver
-	netDialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-		Resolver:  resolver,
-	}
-
 	wsDialer := &websocket.Dialer{
-		NetDialContext:    func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return netDialer.DialContext(ctx, "tcp4", addr)
-		},
 		HandshakeTimeout: 45 * time.Second,
 	}
 

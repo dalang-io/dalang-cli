@@ -60,8 +60,19 @@ func doAuth() error {
 	fmt.Println()
 
 	deviceCode := initResp.Data.DeviceCode
-	maxRetries := 3
-	pollInterval := 15 * time.Second
+	pollIntervalSeconds := initResp.Data.Interval
+	if pollIntervalSeconds <= 0 {
+		pollIntervalSeconds = 15
+	}
+	pollInterval := time.Duration(pollIntervalSeconds) * time.Second
+
+	maxRetries := initResp.Data.ExpiresIn / pollIntervalSeconds
+	if initResp.Data.ExpiresIn%pollIntervalSeconds != 0 {
+		maxRetries++
+	}
+	if maxRetries < 1 {
+		maxRetries = 1
+	}
 
 	for retry := 1; retry <= maxRetries; retry++ {
 		fmt.Printf("%s→%s Attempt %d/%d: Waiting for authorization", colorBlue, colorReset, retry, maxRetries)

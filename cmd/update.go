@@ -11,12 +11,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const (
 	updateBaseURL   = "https://dalang.io/cli"
 	versionInfoURL  = "https://dalang.io/cli/version.json"
 )
+
+var updateHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
 type VersionInfo struct {
 	Version   string `json:"version"`
@@ -65,14 +68,14 @@ func cmdUpdate(args []string) error {
 	}
 
 	// Download to temp file
-	tmpFile, err := os.CreateTemp("", "dalang-update-*")
+	tmpFile, err := os.CreateTemp(filepath.Dir(execPath), ".dalang-update-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
 
-	resp, err := http.Get(downloadURL)
+	resp, err := updateHTTPClient.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download: %w", err)
 	}
@@ -91,24 +94,25 @@ func cmdUpdate(args []string) error {
 
 	// Verify checksum
 	checksumURL := downloadURL + ".sha256"
-	checksumResp, err := http.Get(checksumURL)
-	if err == nil {
-		defer checksumResp.Body.Close()
-		if checksumResp.StatusCode == http.StatusOK {
-			checksumBody, _ := io.ReadAll(checksumResp.Body)
-			// Format: "<hex>  filename" or just "<hex>"
-			expectedHex := strings.TrimSpace(strings.SplitN(string(checksumBody), " ", 2)[0])
-			actualHex := hex.EncodeToString(hash.Sum(nil))
-			if !strings.EqualFold(expectedHex, actualHex) {
-				return fmt.Errorf("checksum mismatch: expected %s, got %s — download may be corrupted", expectedHex, actualHex)
-			}
-			PrintDebug("Checksum verified: %s", actualHex)
-		} else {
-			printWarn("Checksum file not available (HTTP %d), skipping verification", checksumResp.StatusCode)
-		}
-	} else {
-		printWarn("Could not fetch checksum: %v, skipping verification", err)
+	checksumResp, err := updateHTTPClient.Get(checksumURL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch checksum: %w", err)
 	}
+	defer checksumResp.Body.Close()
+	if checksumResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("checksum unavailable: HTTP %d", checksumResp.StatusCode)
+	}
+	checksumBody, err := io.ReadAll(checksumResp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read checksum: %w", err)
+	}
+	// Format: "<hex>  filename" or just "<hex>"
+	expectedHex := strings.TrimSpace(strings.SplitN(string(checksumBody), " ", 2)[0])
+	actualHex := hex.EncodeToString(hash.Sum(nil))
+	if !strings.EqualFold(expectedHex, actualHex) {
+		return fmt.Errorf("checksum mismatch: expected %s, got %s — download may be corrupted", expectedHex, actualHex)
+	}
+	PrintDebug("Checksum verified: %s", actualHex)
 
 	// Make executable
 	if err := os.Chmod(tmpPath, 0755); err != nil {
@@ -151,7 +155,7 @@ func cmdUpdate(args []string) error {
 }
 
 func getLatestVersion() (*VersionInfo, error) {
-	resp, err := http.Get(versionInfoURL)
+	resp, err := updateHTTPClient.Get(versionInfoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -206,4 +210,3 @@ func printUpdateHelp() {
 		colorYellow, colorReset,
 	)
 }
-

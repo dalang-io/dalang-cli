@@ -117,6 +117,10 @@ func Execute() error {
 		return nil
 	}
 
+	if len(args) == 1 && args[0] == "-v" {
+		return cmdVersion()
+	}
+
 	// Parse global flags first
 	args = parseGlobalFlags(args)
 

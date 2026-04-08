@@ -1,6 +1,10 @@
 package cmd
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestProgressCounterWrite(t *testing.T) {
 	pc := &progressCounter{
@@ -94,5 +98,56 @@ func TestCmdUploadNonexistentFile(t *testing.T) {
 	err := cmdUpload([]string{"myvm", "/nonexistent/file.txt", "/remote/path"})
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
+	}
+}
+
+func TestInstallDownloadedFileNewDestination(t *testing.T) {
+	dir := t.TempDir()
+	tmpPath := filepath.Join(dir, "tmp-download")
+	localPath := filepath.Join(dir, "final.txt")
+
+	if err := os.WriteFile(tmpPath, []byte("new"), 0600); err != nil {
+		t.Fatalf("write tmp file: %v", err)
+	}
+
+	if err := installDownloadedFile(tmpPath, localPath); err != nil {
+		t.Fatalf("installDownloadedFile returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(localPath)
+	if err != nil {
+		t.Fatalf("read final file: %v", err)
+	}
+	if string(data) != "new" {
+		t.Fatalf("unexpected final contents: %q", string(data))
+	}
+}
+
+func TestInstallDownloadedFileReplacesExistingDestination(t *testing.T) {
+	dir := t.TempDir()
+	tmpPath := filepath.Join(dir, "tmp-download")
+	localPath := filepath.Join(dir, "final.txt")
+
+	if err := os.WriteFile(tmpPath, []byte("new"), 0600); err != nil {
+		t.Fatalf("write tmp file: %v", err)
+	}
+	if err := os.WriteFile(localPath, []byte("old"), 0600); err != nil {
+		t.Fatalf("write existing file: %v", err)
+	}
+
+	if err := installDownloadedFile(tmpPath, localPath); err != nil {
+		t.Fatalf("installDownloadedFile returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(localPath)
+	if err != nil {
+		t.Fatalf("read final file: %v", err)
+	}
+	if string(data) != "new" {
+		t.Fatalf("unexpected final contents: %q", string(data))
+	}
+
+	if _, err := os.Stat(localPath + ".bak"); !os.IsNotExist(err) {
+		t.Fatalf("expected backup file to be removed, stat err = %v", err)
 	}
 }
