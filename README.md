@@ -51,9 +51,22 @@ Or download manually from [GitHub Releases](https://github.com/dalang-io/dalang-
 
 ### Termux Notes
 
-- The installer auto-detects Termux and installs into `$PREFIX/bin`
-- No `sudo` is required in Termux
-- Releases publish `dalang-android-arm64` for Android ARM64 devices
+The install script is the recommended path on Termux — it auto-detects the
+environment, installs to `$PREFIX/bin` (so `dalang` lands on your `$PATH`),
+sets the executable bit, and skips `sudo`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dalang-io/dalang-cli/main/install.sh | bash
+```
+
+If you prefer manual install, use the **Android / Termux (ARM64)** block
+above verbatim. Common failure modes when downloading by hand:
+
+- Forgot `chmod +x` → `Permission denied` on first run.
+- Moved the binary to `~/bin` or `$HOME` instead of `$PREFIX/bin` → not on
+  Termux's `$PATH`, so `dalang` is "not found" even though it exists.
+- Used `sudo` → not available in stock Termux; the install script
+  intentionally skips it.
 
 ### Available Release Assets
 
@@ -123,6 +136,36 @@ dalang start <name>      # Start VM
 dalang stop <name>       # Stop VM
 dalang delete <name>     # Delete VM
 ```
+
+### File Transfer (scp-style)
+
+```bash
+# Upload a single file
+dalang scp ./app.tar.gz MyVM:/opt/app.tar.gz
+
+# Download a single file
+dalang scp MyVM:/etc/nginx/nginx.conf ./nginx.conf
+
+# Multiple sources to a directory
+dalang scp file1.txt file2.txt MyVM:/tmp/
+
+# Recursive upload of a project tree
+dalang scp -r ./project MyVM:/srv/project
+
+# Recursive download with mode/mtime preserved
+dalang scp -r -p MyVM:/var/log ./vm-logs
+
+# Quiet mode (no progress bars)
+dalang scp -q ./big.tar.gz MyVM:/tmp/big.tar.gz
+```
+
+`scp` accepts the same `<vps-name>:<absolute-path>` syntax as OpenSSH's `scp`.
+Direction is inferred from which operand carries the host prefix; the last
+positional argument is always the destination. Authorization mirrors `dalang
+shell`/`exec` — owner, group-shared, or admin.
+
+The legacy `dalang upload` and `dalang download` commands still work but are
+single-file only; new code should prefer `scp`.
 
 ### Custom Domains
 

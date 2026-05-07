@@ -169,6 +169,8 @@ func Execute() error {
 		return cmdUpload(cmdArgs)
 	case "download", "pull":
 		return cmdDownload(cmdArgs)
+	case "scp", "cp":
+		return cmdScp(cmdArgs)
 	default:
 		printError("Unknown command: %s", command)
 		fmt.Println("\nRun 'dalang help' for usage.")
@@ -234,8 +236,9 @@ func printHelp() {
 	fmt.Println("    " + colorCyan + "domain remove <domain>" + colorReset + "     Remove a custom domain")
 	fmt.Println()
 	fmt.Printf("  %sFile Transfer%s\n", colorBold, colorReset)
-	fmt.Println("    " + colorCyan + "upload <name> <local> <remote>" + colorReset + "  Upload file to VM")
-	fmt.Println("    " + colorCyan + "download <name> <remote> [local]" + colorReset + " Download file from VM")
+	fmt.Println("    " + colorCyan + "scp [-r] <src>... <dst>" + colorReset + "          Copy files (scp-style: host:path syntax, multi-source, -r recursive)")
+	fmt.Println("    " + colorCyan + "upload <name> <local> <remote>" + colorReset + "   Upload single file (legacy; prefer `scp`)")
+	fmt.Println("    " + colorCyan + "download <name> <remote> [local]" + colorReset + " Download single file (legacy; prefer `scp`)")
 	fmt.Println()
 	fmt.Printf("  %sPricing%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "price" + colorReset + "                      Show VPS pricing table")
@@ -327,6 +330,8 @@ func cmdHelpFor(command string) error {
 		printUploadHelp()
 	case "download", "pull":
 		printDownloadHelp()
+	case "scp", "cp":
+		printScpHelp()
 	default:
 		printError("Unknown command: %s", command)
 		return fmt.Errorf("unknown command: %s", command)
