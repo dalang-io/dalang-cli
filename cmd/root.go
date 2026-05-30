@@ -103,6 +103,11 @@ func formatBytes(b int64) string {
 
 // Execute runs the CLI
 func Execute() error {
+	// On Windows, prepare the console for UTF-8 glyphs and ANSI colors so the
+	// box-drawing/arrow output below doesn't come out as mojibake or raw escapes.
+	// No-op on every other platform.
+	enableWindowsConsole()
+
 	args := os.Args[1:]
 
 	// Android's linker adds executable path as extra argument - skip it
