@@ -160,6 +160,45 @@ func TestReadLoopUnblocksOnClose(t *testing.T) {
 	}
 }
 
+// TestReadLoopReturnsNilWhenRemoteCloses covers the `exit` case: the server
+// closes the WebSocket when the shell ends. readLoop must return nil (clean
+// disconnect) so the CLI drops back to the local terminal without a "terminal
+// error", even though the local `done` channel was never closed.
+func TestReadLoopReturnsNilWhenRemoteCloses(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		// Simulate the shell ending: send a close frame and drop the conn.
+		_ = c.WriteControl(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "session ended"),
+			time.Now().Add(time.Second))
+		c.Close()
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	term, err := NewTerminal(wsURL, "")
+	if err != nil {
+		t.Fatalf("NewTerminal: %v", err)
+	}
+	defer term.Close()
+
+	result := make(chan error, 1)
+	go func() { result <- term.readLoop() }()
+
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("readLoop should return nil when the remote closes, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("readLoop did not return after remote close")
+	}
+}
+
 func TestNewTerminalSignature(t *testing.T) {
 	// Verify NewTerminal accepts a token parameter (fix #10).
 	// We can't actually connect, but we verify the function signature compiles.

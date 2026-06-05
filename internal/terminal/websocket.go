@@ -16,13 +16,13 @@ import (
 
 // Terminal handles WebSocket terminal connection
 type Terminal struct {
-	conn         *websocket.Conn
-	oldState     *term.State
-	done         chan struct{}
-	mu           sync.Mutex
-	restoreOnce  sync.Once
-	closeOnce    sync.Once
-	escapeState  int  // 0=normal, 1=after newline, 2=after tilde
+	conn        *websocket.Conn
+	oldState    *term.State
+	done        chan struct{}
+	mu          sync.Mutex
+	restoreOnce sync.Once
+	closeOnce   sync.Once
+	escapeState int // 0=normal, 1=after newline, 2=after tilde
 }
 
 // ResizeMessage represents a terminal resize message
@@ -132,7 +132,10 @@ func (t *Terminal) readLoop() error {
 			}
 			t.closeDone()
 			fmt.Println("\r\nConnection closed.")
-			return err
+			// A read error means the session is over — the remote closed it
+			// (e.g. you typed `exit`) or the network dropped. Either way return
+			// to the local shell cleanly instead of surfacing a "terminal error".
+			return nil
 		}
 
 		// Check if it's an error message
@@ -288,6 +291,10 @@ func (t *Terminal) Close() {
 
 	t.mu.Lock()
 	if t.conn != nil {
+		// Bound the courtesy close-frame write so a stuck/half-open socket can
+		// never make disconnect (~. / Ctrl+C) hang. conn.Close() below is what
+		// actually unblocks readLoop, so we proceed to it regardless.
+		t.conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 		t.conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		t.conn.Close()
