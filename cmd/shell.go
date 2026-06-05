@@ -96,8 +96,14 @@ func connectTerminal(name, mode string) error {
 			}
 			if json.Unmarshal(usageResp, &usage) == nil && usage.Success {
 				d := usage.Data
-				if d.MemoryTotal > 0 || d.DiskTotal > 0 {
+				// Live uptime + CPU load come from inside the VM (the usage
+				// endpoint doesn't expose them); best-effort, never blocks.
+				metrics, haveMetrics := fetchVMMetrics(client, foundVPS.ID)
+				if d.MemoryTotal > 0 || d.DiskTotal > 0 || haveMetrics {
 					fmt.Printf("\n%s%s%s — Resource Usage\n", colorBold, displayName, colorReset)
+					if haveMetrics {
+						printVMMetrics(metrics)
+					}
 					if d.MemoryTotal > 0 {
 						pct := float64(d.MemoryUsed) / float64(d.MemoryTotal) * 100
 						fmt.Printf("  Memory: %s %.0f%% (%s / %s)\n",
@@ -123,7 +129,7 @@ func connectTerminal(name, mode string) error {
 	}
 	defer term.Close()
 
-	printSuccess("Connected! Type ~. (tilde dot) after Enter to disconnect.\n")
+	printSuccess("Connected.\n")
 
 	// Set up signal handling (cross-platform)
 	sigChan := make(chan os.Signal, 1)
