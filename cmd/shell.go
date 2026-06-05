@@ -45,27 +45,9 @@ func connectTerminal(name, mode string) error {
 	client.Verbose = VerboseOutput
 
 	// Find VPS by name
-	vpsResp, err := client.Get("/vps/list")
+	foundVPS, err := findVPSByName(client, name)
 	if err != nil {
-		return fmt.Errorf("failed to fetch services: %w", err)
-	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	var foundVPS *api.VPS
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			foundVPS = &v
-			break
-		}
-	}
-
-	if foundVPS == nil {
-		printError("VPS '%s' not found", name)
-		return fmt.Errorf("VPS not found: %s", name)
+		return err
 	}
 
 	if strings.ToUpper(foundVPS.Status) != "RUNNING" {
@@ -84,11 +66,12 @@ func connectTerminal(name, mode string) error {
 	wsURL := strings.Replace(apiURL, "https://", "wss://", 1)
 	wsURL = strings.Replace(wsURL, "http://", "ws://", 1)
 
-	wsURL = fmt.Sprintf("%s/vps/terminal?uuid=%s&mode=%s&force=true",
-		wsURL,
-		foundVPS.ID,
-		mode,
-	)
+	wsURL = fmt.Sprintf("%s/vps/terminal?uuid=%s&mode=%s", wsURL, foundVPS.ID, mode)
+	// force=true takes over an existing console session; only meaningful for
+	// console mode, not the persistent shell.
+	if mode == "console" {
+		wsURL += "&force=true"
+	}
 
 	PrintDebug("WebSocket URL: %s", wsURL)
 

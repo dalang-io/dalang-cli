@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -44,7 +45,7 @@ func cmdUpdate(args []string) error {
 		printInfo("Proceeding with update anyway...")
 		latestVersion = &VersionInfo{Version: "latest"}
 	} else {
-		if latestVersion.Version == currentVersion {
+		if !isNewerVersion(latestVersion.Version, currentVersion) {
 			printSuccess("Already up to date (version %s)", currentVersion)
 			return nil
 		}
@@ -183,6 +184,51 @@ func getLatestVersion() (*VersionInfo, error) {
 	}
 
 	return &info, nil
+}
+
+// isNewerVersion reports whether latest is strictly newer than current using
+// semver-ish comparison: a leading "v" is ignored and dotted numeric parts are
+// compared left to right. If either version can't be parsed (e.g. a "dev"
+// build), it falls back to inequality so the update still proceeds.
+func isNewerVersion(latest, current string) bool {
+	lp, okL := parseVersion(latest)
+	cp, okC := parseVersion(current)
+	if !okL || !okC {
+		return latest != current
+	}
+
+	for i := 0; i < len(lp) && i < len(cp); i++ {
+		if lp[i] != cp[i] {
+			return lp[i] > cp[i]
+		}
+	}
+	return len(lp) > len(cp)
+}
+
+// parseVersion parses "v1.7.2" / "1.7.2-rc1" into [1, 7, 2]. Pre-release and
+// build suffixes are dropped. Returns false if there are no numeric parts.
+func parseVersion(v string) ([]int, bool) {
+	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	if i := strings.IndexAny(v, "-+"); i >= 0 {
+		v = v[:i]
+	}
+	if v == "" {
+		return nil, false
+	}
+
+	parts := strings.Split(v, ".")
+	nums := make([]int, 0, len(parts))
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, false
+		}
+		nums = append(nums, n)
+	}
+	if len(nums) == 0 {
+		return nil, false
+	}
+	return nums, true
 }
 
 func getBinaryName() string {

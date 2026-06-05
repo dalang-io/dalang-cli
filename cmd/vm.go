@@ -146,27 +146,15 @@ func vmDelete(name string) error {
 }
 
 func resolveVPSName(client *api.Client, name string) (string, string, error) {
-	vpsResp, err := client.Get("/vps/list")
+	vps, err := findVPSByName(client, name)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch services: %w", err)
+		return "", "", err
 	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
-		return "", "", fmt.Errorf("failed to parse response: %w", err)
+	displayName := vps.DisplayName
+	if displayName == "" {
+		displayName = vps.Name
 	}
-
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			displayName := v.DisplayName
-			if displayName == "" {
-				displayName = v.Name
-			}
-			return v.ID, displayName, nil
-		}
-	}
-
-	return "", "", fmt.Errorf("VPS '%s' not found", name)
+	return vps.ID, displayName, nil
 }
 
 func printStartHelp() {

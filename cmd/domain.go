@@ -362,26 +362,6 @@ func domainRemove(domain string) error {
 	return nil
 }
 
-func findVPSByName(client *api.Client, name string) (*api.VPS, error) {
-	resp, err := client.Get("/vps/list")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch VPS list: %w", err)
-	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(resp, &vpsData); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			return &v, nil
-		}
-	}
-
-	return nil, fmt.Errorf("VPS '%s' not found", name)
-}
-
 func printDomainHelp() {
 	fmt.Printf(`%sdalang domain%s - Manage custom domains
 

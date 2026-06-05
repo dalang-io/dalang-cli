@@ -61,6 +61,10 @@ func NewClient() (*Client, error) {
 	return client, nil
 }
 
+// tokenRefreshThreshold is how close to expiry an access token must be before
+// NewAuthenticatedClient proactively renews it.
+const tokenRefreshThreshold = 24 * time.Hour
+
 // NewAuthenticatedClient creates a client and ensures authentication
 func NewAuthenticatedClient() (*Client, error) {
 	client, err := NewClient()
@@ -72,7 +76,59 @@ func NewAuthenticatedClient() (*Client, error) {
 		return nil, fmt.Errorf("not authenticated. Run 'dalang auth' to login")
 	}
 
+	client.maybeRefreshToken()
+
 	return client, nil
+}
+
+// maybeRefreshToken proactively renews the access token when it is still valid
+// but close to expiry, so active users rarely get bounced to a full re-login.
+//
+// The /cli/auth/refresh endpoint requires a still-valid token (it just re-issues
+// a fresh one for the same user), so this only acts before expiry — an already
+// expired token is left to the normal 401 path. Entirely best-effort: any
+// failure is ignored and the existing token continues to be used.
+func (c *Client) maybeRefreshToken() {
+	creds, err := config.LoadCredentials()
+	if err != nil || creds.ExpiresAt == 0 {
+		return // unknown expiry (older credentials) — nothing to do
+	}
+
+	expiry := time.Unix(creds.ExpiresAt, 0)
+	now := time.Now()
+	if !now.Before(expiry) {
+		return // already expired; a refresh would be rejected
+	}
+	if expiry.Sub(now) > tokenRefreshThreshold {
+		return // not near expiry yet
+	}
+
+	resp, err := c.Post("/cli/auth/refresh", nil)
+	if err != nil {
+		return
+	}
+
+	var r CLIAuthPollResponse
+	if err := json.Unmarshal(resp, &r); err != nil || !r.Success || r.Data.AccessToken == "" {
+		return
+	}
+
+	email := r.Data.Email
+	if email == "" {
+		email = creds.Email
+	}
+	newCreds := &config.Credentials{
+		AccessToken:  r.Data.AccessToken,
+		RefreshToken: creds.RefreshToken,
+		Email:        email,
+		ExpiresAt:    time.Now().Add(time.Duration(r.Data.ExpiresIn) * time.Second).Unix(),
+	}
+	if err := config.SaveCredentials(newCreds); err == nil {
+		c.Token = newCreds.AccessToken
+		if c.Verbose {
+			fmt.Fprintln(os.Stderr, "[DEBUG] Access token proactively refreshed")
+		}
+	}
 }
 
 // buildURL constructs a full URL from a path
@@ -86,8 +142,21 @@ func (c *Client) buildURL(path string) string {
 	return u + path
 }
 
-// Request makes an HTTP request to the API
+// Request makes an HTTP request to the API using the client's default HTTP client.
 func (c *Client) Request(method, path string, body interface{}) ([]byte, error) {
+	return c.doRequest(c.HTTPClient, method, path, body)
+}
+
+// PostWithTimeout makes a POST request using a one-off HTTP client with the
+// given timeout, for endpoints whose work may exceed the default 30s (e.g.
+// remote command execution). It shares the default client's transport.
+func (c *Client) PostWithTimeout(path string, body interface{}, timeout time.Duration) ([]byte, error) {
+	hc := &http.Client{Timeout: timeout, Transport: c.HTTPClient.Transport}
+	return c.doRequest(hc, "POST", path, body)
+}
+
+// doRequest performs an HTTP request against the API using the supplied client.
+func (c *Client) doRequest(httpClient *http.Client, method, path string, body interface{}) ([]byte, error) {
 	// Don't use url.JoinPath as it encodes query strings incorrectly
 	u := c.buildURL(path)
 
@@ -131,7 +200,7 @@ func (c *Client) Request(method, path string, body interface{}) ([]byte, error) 
 		}
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		if c.Verbose {
 			fmt.Fprintf(os.Stderr, "[DEBUG] HTTP error: %v\n", err)

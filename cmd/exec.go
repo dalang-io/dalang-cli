@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dalang-io/dalang-cli/internal/api"
 )
@@ -36,27 +37,9 @@ func executeCommand(name, command string) error {
 	client.Verbose = VerboseOutput
 
 	// Find VPS by name
-	vpsResp, err := client.Get("/vps/list")
+	foundVPS, err := findVPSByName(client, name)
 	if err != nil {
-		return fmt.Errorf("failed to fetch services: %w", err)
-	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	var foundVPS *api.VPS
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			foundVPS = &v
-			break
-		}
-	}
-
-	if foundVPS == nil {
-		printError("VPS '%s' not found", name)
-		return fmt.Errorf("VPS not found: %s", name)
+		return err
 	}
 
 	if strings.ToUpper(foundVPS.Status) != "RUNNING" {
@@ -66,11 +49,12 @@ func executeCommand(name, command string) error {
 
 	PrintDebug("Executing command on VPS %s: %s", foundVPS.ID, command)
 
-	// Execute command via API
-	execResp, err := client.Post("/vps/session/exec", map[string]string{
+	// Execute command via API. Use a timeout above the server-side command
+	// timeout so the CLI doesn't cut the request short for slow commands.
+	execResp, err := client.PostWithTimeout("/vps/session/exec", map[string]string{
 		"uuid":    foundVPS.ID,
 		"command": command,
-	})
+	}, 60*time.Second)
 	if err != nil {
 		return fmt.Errorf("failed to execute command: %w", err)
 	}

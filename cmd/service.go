@@ -510,27 +510,9 @@ func serviceUpgrade(name string, args []string) error {
 	}
 	client.Verbose = VerboseOutput
 
-	vpsResp, err := client.Get("/vps/list")
+	foundVPS, err := findVPSByName(client, name)
 	if err != nil {
-		return fmt.Errorf("failed to fetch services: %w", err)
-	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	var foundVPS *api.VPS
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			foundVPS = &v
-			break
-		}
-	}
-
-	if foundVPS == nil {
-		printError("VPS '%s' not found", name)
-		return fmt.Errorf("VPS not found: %s", name)
+		return err
 	}
 
 	// Parse upgrade flags - start with current values
@@ -683,27 +665,9 @@ func serviceExtend(name string, args []string) error {
 	}
 	client.Verbose = VerboseOutput
 
-	vpsResp, err := client.Get("/vps/list")
+	foundVPS, err := findVPSByName(client, name)
 	if err != nil {
-		return fmt.Errorf("failed to fetch services: %w", err)
-	}
-
-	var vpsData api.VPSListResponse
-	if err := json.Unmarshal(vpsResp, &vpsData); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	var foundVPS *api.VPS
-	for _, v := range vpsData.Data {
-		if v.Name == name || v.DisplayName == name {
-			foundVPS = &v
-			break
-		}
-	}
-
-	if foundVPS == nil {
-		printError("VPS '%s' not found", name)
-		return fmt.Errorf("VPS not found: %s", name)
+		return err
 	}
 
 	// Parse months flag
