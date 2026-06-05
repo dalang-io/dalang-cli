@@ -3,19 +3,22 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/dalang-io/dalang-cli/internal/api"
+	"golang.org/x/term"
 )
 
 func cmdExec(args []string) error {
-	if len(args) < 2 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 		printExecHelp()
-		if len(args) < 2 {
-			return fmt.Errorf("missing arguments")
-		}
 		return nil
+	}
+	if len(args) < 2 {
+		printExecHelp()
+		return fmt.Errorf("missing arguments")
 	}
 
 	vmName := args[0]
@@ -49,12 +52,24 @@ func executeCommand(name, command string) error {
 
 	PrintDebug("Executing command on VPS %s: %s", foundVPS.ID, command)
 
+	// Show a spinner while the (blocking) exec runs so it's clear the CLI is
+	// working and not stuck. Only on an interactive stderr, and never in quiet
+	// or JSON mode so piped/parsed output stays clean.
+	var sp *spinner
+	if !quietOutput && !jsonOutput && term.IsTerminal(int(os.Stderr.Fd())) {
+		sp = startSpinner(fmt.Sprintf("Running on %s...", name))
+	}
+
 	// Execute command via API. Use a timeout above the server-side command
 	// timeout so the CLI doesn't cut the request short for slow commands.
 	execResp, err := client.PostWithTimeout("/vps/session/exec", map[string]string{
 		"uuid":    foundVPS.ID,
 		"command": command,
 	}, 60*time.Second)
+
+	if sp != nil {
+		sp.Stop()
+	}
 	if err != nil {
 		return fmt.Errorf("failed to execute command: %w", err)
 	}

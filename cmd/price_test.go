@@ -80,7 +80,7 @@ func TestCalculateVPSPrice(t *testing.T) {
 			cpu:           1,
 			ramMB:         1024,
 			storageGB:     5,
-			bandwidthMbps: 30, // 10 extra, rounds up to 1 block of 20 Mbps
+			bandwidthMbps: 30,                          // 10 extra, rounds up to 1 block of 20 Mbps
 			want:          20000 + 5000 + 5000 + 20000, // (10+19)/20 = 1 block
 		},
 		{

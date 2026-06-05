@@ -87,8 +87,17 @@ func cmdUpdate(args []string) error {
 	}
 
 	hash := sha256.New()
-	_, err = io.Copy(io.MultiWriter(tmpFile, hash), resp.Body)
+	writers := []io.Writer{tmpFile, hash}
+	var pw *progressWriter
+	if !quietOutput && resp.ContentLength > 0 {
+		pw = &progressWriter{total: resp.ContentLength}
+		writers = append(writers, pw)
+	}
+	_, err = io.Copy(io.MultiWriter(writers...), resp.Body)
 	tmpFile.Close()
+	if pw != nil {
+		pw.finish()
+	}
 	if err != nil {
 		return fmt.Errorf("failed to save download: %w", err)
 	}

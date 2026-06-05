@@ -126,7 +126,7 @@ func TestPrintHelpIncludesCoreSections(t *testing.T) {
 		"Dalang CLI",
 		"COMMANDS:",
 		"service list",
-		"upload <name> <local> <remote>",
+		"scp [-r] <src>... <dst>",
 		"https://dalang.io/docs/cli",
 	} {
 		if !strings.Contains(out, needle) {
