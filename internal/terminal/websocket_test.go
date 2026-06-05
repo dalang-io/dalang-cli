@@ -2,7 +2,13 @@ package terminal
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestDeriveOrigin(t *testing.T) {
@@ -106,6 +112,52 @@ func TestTerminalRestoreSafeToCallMultipleTimes(t *testing.T) {
 	// restore() with nil oldState should not panic, even called multiple times
 	term.restore()
 	term.restore()
+}
+
+// TestReadLoopUnblocksOnClose is the regression test for the ~. / Ctrl+C hang:
+// readLoop blocks in conn.ReadMessage, and a local disconnect must close the
+// connection so readLoop unblocks and returns nil (clean exit), not an error.
+func TestReadLoopUnblocksOnClose(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		// Hold the connection open (never send) until the client closes it,
+		// so the client's readLoop stays blocked in ReadMessage.
+		for {
+			if _, _, err := c.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	term, err := NewTerminal(wsURL, "")
+	if err != nil {
+		t.Fatalf("NewTerminal: %v", err)
+	}
+
+	result := make(chan error, 1)
+	go func() { result <- term.readLoop() }()
+
+	// Let readLoop reach the blocking ReadMessage.
+	time.Sleep(50 * time.Millisecond)
+
+	// Simulate the ~. escape / Ctrl+C disconnect path.
+	term.Close()
+
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatalf("readLoop should return nil on intentional close, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("readLoop did not unblock after Close() — disconnect hangs")
+	}
 }
 
 func TestNewTerminalSignature(t *testing.T) {

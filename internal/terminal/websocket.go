@@ -120,29 +120,32 @@ func (t *Terminal) Run() error {
 // readLoop reads from WebSocket and writes to stdout
 func (t *Terminal) readLoop() error {
 	for {
-		select {
-		case <-t.done:
-			return nil
-		default:
-			_, message, err := t.conn.ReadMessage()
-			if err != nil {
-				t.closeDone()
-				fmt.Println("\r\nConnection closed.")
-				return err
+		_, message, err := t.conn.ReadMessage()
+		if err != nil {
+			// If the disconnect was initiated locally (Ctrl+C or the ~. escape
+			// closed the connection to unblock this read), exit cleanly rather
+			// than surfacing the resulting read error.
+			select {
+			case <-t.done:
+				return nil
+			default:
 			}
-
-			// Check if it's an error message
-			var errMsg struct {
-				Error string `json:"error"`
-			}
-			if json.Unmarshal(message, &errMsg) == nil && errMsg.Error != "" {
-				fmt.Fprintf(os.Stderr, "\r\nError: %s\r\n", errMsg.Error)
-				continue
-			}
-
-			// Write to stdout
-			os.Stdout.Write(message)
+			t.closeDone()
+			fmt.Println("\r\nConnection closed.")
+			return err
 		}
+
+		// Check if it's an error message
+		var errMsg struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(message, &errMsg) == nil && errMsg.Error != "" {
+			fmt.Fprintf(os.Stderr, "\r\nError: %s\r\n", errMsg.Error)
+			continue
+		}
+
+		// Write to stdout
+		os.Stdout.Write(message)
 	}
 }
 
@@ -189,9 +192,13 @@ func (t *Terminal) writeLoop() error {
 					out = append(out, ch)
 				case 2: // After tilde (held)
 					if ch == '.' {
-						// Escape sequence detected — disconnect gracefully
-						t.closeDone()
-						fmt.Println("\r\nConnection closed.")
+						// Escape sequence detected — disconnect gracefully.
+						// Close() closes the WebSocket, which unblocks readLoop's
+						// ReadMessage so Run() returns control to the local
+						// terminal. Just closing `done` is not enough: readLoop
+						// is blocked inside ReadMessage and never sees it.
+						fmt.Print("\r\nConnection closed.\r\n")
+						t.Close()
 						return nil
 					}
 					// Not an escape — flush the held tilde, then this char
