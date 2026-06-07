@@ -107,9 +107,13 @@ dalang shell my-vm
 ### Authentication
 
 ```bash
-dalang auth              # Login via browser
+dalang auth              # Login via browser (device flow)
+dalang auth status       # Check current login
 dalang auth logout       # Clear credentials
 ```
+
+Your session is refreshed automatically as it nears expiry, so you rarely need
+to log in again.
 
 ### Credits
 
@@ -130,12 +134,16 @@ dalang service create            # Create new VPS
 ### VM Operations
 
 ```bash
-dalang shell <name>      # Interactive shell
-dalang console <name>    # Console access
-dalang start <name>      # Start VM
-dalang stop <name>       # Stop VM
-dalang delete <name>     # Delete VM
+dalang shell <name>          # Interactive shell (shows uptime/CPU/mem/disk on connect)
+dalang exec <name> "cmd"     # Run a command and return its output
+dalang console <name>        # Console access
+dalang start <name>          # Start VM
+dalang stop <name>           # Stop VM
+dalang delete <name>         # Delete VM
 ```
+
+VM names are matched case-insensitively, and a close match is suggested if the
+name isn't found (e.g. `dalang shell binuss` → "Did you mean: binus?").
 
 ### File Transfer (scp-style)
 
@@ -180,8 +188,8 @@ dalang domain remove <domain>        # Remove domain
 ### Other
 
 ```bash
-dalang update            # Update to latest version
-dalang version           # Show version
+dalang update            # Update to latest version (shows a download progress bar)
+dalang version           # Show version (also: dalang -V)
 dalang help              # Show help
 dalang help <command>    # Command-specific help
 ```
@@ -193,12 +201,21 @@ dalang help <command>    # Command-specific help
 | `--json` | Output in JSON format |
 | `--quiet`, `-q` | Minimal output |
 | `--yes`, `-y` | Skip confirmations |
+| `--no-color` | Disable colored output |
 | `--verbose`, `-v` | Debug output |
+| `-V`, `--version` | Show version |
+
+Colors are automatically disabled when output is piped/redirected or when the
+`NO_COLOR` environment variable is set.
+
+> Note: `-v` means **verbose**. Use `-V` or `dalang version` for the version.
 
 ## Shell/Console Tips
 
-- Press Enter, then type `~.` (tilde + dot) to disconnect
-- Ctrl+C sends to remote VM, not to disconnect
+- Type `exit` to end the session and return to your local terminal
+- Alternatively press Enter, then type `~.` (tilde + dot) to force-disconnect
+- On connect, the shell prints a resource panel (uptime, CPU load, memory, disk)
+- Ctrl+C sends to the remote VM; `~.` or `exit` is how you leave
 - Terminal is in raw mode for full interactivity
 
 ## Updating
@@ -245,6 +262,7 @@ Credentials are stored in:
 | Variable | Description |
 |----------|-------------|
 | `DALANG_API_URL` | Override API URL (for development) |
+| `NO_COLOR` | Disable colored output when set (any value) |
 
 ## License
 
