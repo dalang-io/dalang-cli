@@ -7,11 +7,11 @@ import (
 
 // Pricing constants (in IDR per month)
 const (
-	PricePerCPU         = 20000 // Rp 20.000 per vCPU
-	PricePerGBRAM       = 5000  // Rp 5.000 per GB RAM
-	PricePerGBStorage   = 1000  // Rp 1.000 per GB storage
-	FreeBandwidthMbps   = 20    // 20 Mbps included free
-	PricePer20Mbps      = 20000 // Rp 20.000 per additional 20 Mbps
+	PricePerCPU       = 20000 // Rp 20.000 per vCPU
+	PricePerGBRAM     = 5000  // Rp 5.000 per GB RAM
+	PricePerGBStorage = 1000  // Rp 1.000 per GB storage
+	FreeBandwidthMbps = 20    // 20 Mbps included free
+	PricePer20Mbps    = 20000 // Rp 20.000 per additional 20 Mbps
 )
 
 // CalculateVPSPrice calculates the monthly price for a VPS

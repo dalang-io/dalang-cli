@@ -157,8 +157,7 @@ func cmdUpdate(args []string) error {
 		if err := os.Rename(tmpPath, execPath); err != nil {
 			// May need sudo - try to give helpful message
 			if os.IsPermission(err) {
-				printError("Permission denied. Try: sudo dalang update")
-				return fmt.Errorf("permission denied")
+				return fmt.Errorf("permission denied. Try: sudo dalang update")
 			}
 			return fmt.Errorf("failed to install new binary: %w", err)
 		}

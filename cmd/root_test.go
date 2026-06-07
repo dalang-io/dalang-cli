@@ -12,7 +12,44 @@ func resetGlobalFlags() {
 	jsonOutput = false
 	quietOutput = false
 	yesFlag = false
+	noColorFlag = false
 	VerboseOutput = false
+}
+
+func TestSuggestCommand(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"serivce", "service"}, // transposition
+		{"shel", "shell"},      // missing char
+		{"versionn", "version"},
+		{"exce", "exec"},
+		{"helpp", "help"},
+		{"zzzzzzzzzzzz", ""}, // nothing close
+		{"", ""},
+	}
+	for _, tc := range cases {
+		if got := suggestCommand(tc.input); got != tc.want {
+			t.Errorf("suggestCommand(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestApplyColorSettingsDisables(t *testing.T) {
+	// Save and restore the color vars so this test doesn't leak into others.
+	save := [7]string{colorReset, colorRed, colorGreen, colorYellow, colorBlue, colorCyan, colorBold}
+	t.Cleanup(func() {
+		colorReset, colorRed, colorGreen, colorYellow, colorBlue, colorCyan, colorBold =
+			save[0], save[1], save[2], save[3], save[4], save[5], save[6]
+		noColorFlag = false
+	})
+
+	noColorFlag = true
+	applyColorSettings()
+	if colorReset != "" || colorBold != "" || colorCyan != "" {
+		t.Errorf("expected colors disabled with --no-color, got reset=%q bold=%q", colorReset, colorBold)
+	}
 }
 
 func TestParseGlobalFlags(t *testing.T) {

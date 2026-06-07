@@ -46,8 +46,7 @@ func executeCommand(name, command string) error {
 	}
 
 	if strings.ToUpper(foundVPS.Status) != "RUNNING" {
-		printError("VPS '%s' is not running (status: %s)", name, foundVPS.Status)
-		return fmt.Errorf("VPS not running")
+		return fmt.Errorf("VPS '%s' is not running (status: %s)", name, foundVPS.Status)
 	}
 
 	PrintDebug("Executing command on VPS %s: %s", foundVPS.ID, command)
@@ -88,8 +87,7 @@ func executeCommand(name, command string) error {
 	}
 
 	if !result.Success {
-		printError("Command failed: %s", result.Message)
-		return fmt.Errorf("command failed")
+		return fmt.Errorf("command failed: %s", result.Message)
 	}
 
 	// Output based on format

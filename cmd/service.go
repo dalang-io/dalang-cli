@@ -28,7 +28,7 @@ func cmdService(args []string) error {
 		return serviceList()
 	case "info":
 		if len(args) < 2 {
-			printError("Usage: dalang service info <name>")
+			printUsage("Usage: dalang service info <name>")
 			return fmt.Errorf("missing service name")
 		}
 		return serviceInfo(args[1])
@@ -36,13 +36,13 @@ func cmdService(args []string) error {
 		return serviceCreate(args[1:])
 	case "upgrade":
 		if len(args) < 2 {
-			printError("Usage: dalang service upgrade <name> [options]")
+			printUsage("Usage: dalang service upgrade <name> [options]")
 			return fmt.Errorf("missing service name")
 		}
 		return serviceUpgrade(args[1], args[2:])
 	case "extend":
 		if len(args) < 2 {
-			printError("Usage: dalang service extend <name> [--months N]")
+			printUsage("Usage: dalang service extend <name> [--months N]")
 			return fmt.Errorf("missing service name")
 		}
 		return serviceExtend(args[1], args[2:])
@@ -50,8 +50,7 @@ func cmdService(args []string) error {
 		printServiceHelp()
 		return nil
 	default:
-		printError("Unknown service subcommand: %s", args[0])
-		return fmt.Errorf("unknown subcommand: %s", args[0])
+		return fmt.Errorf("unknown service subcommand: %s", args[0])
 	}
 }
 
@@ -217,8 +216,7 @@ func serviceInfo(name string) error {
 	// Find VPS by name first
 	vps, err := findVPSByName(client, name)
 	if err != nil {
-		printError("Service '%s' not found", name)
-		return fmt.Errorf("service not found: %s", name)
+		return err
 	}
 
 	// Sync this specific VPS's specs/status from incus
@@ -394,8 +392,7 @@ func serviceCreate(args []string) error {
 
 	// Validate required fields
 	if name == "" {
-		printError("--name is required")
-		return fmt.Errorf("missing required flag: --name")
+		return fmt.Errorf("--name is required")
 	}
 
 	// Set defaults
@@ -560,14 +557,13 @@ func serviceUpgrade(name string, args []string) error {
 	// Check if any upgrade is requested
 	currentRAM := foundVPS.RAM / 1024
 	if cpu <= foundVPS.VCPU && ram <= currentRAM && storage <= foundVPS.Storage && bandwidth <= foundVPS.Bandwidth {
-		printError("No upgrade specified. New values must be higher than current.")
-		fmt.Printf("\nCurrent specs:\n")
+		fmt.Printf("Current specs:\n")
 		fmt.Printf("  CPU:       %d vCPU\n", foundVPS.VCPU)
 		fmt.Printf("  RAM:       %d GB\n", currentRAM)
 		fmt.Printf("  Storage:   %d GB\n", foundVPS.Storage)
 		fmt.Printf("  Bandwidth: %d Mbps\n", foundVPS.Bandwidth)
 		fmt.Println("\nUsage: dalang service upgrade <name> --cpu 4 --ram 4G --storage 50G")
-		return fmt.Errorf("no upgrade specified")
+		return fmt.Errorf("no upgrade specified — new values must be higher than current")
 	}
 
 	// Calculate prices
@@ -688,8 +684,7 @@ func serviceExtend(name string, args []string) error {
 	// Validate months
 	validMonths := map[int]bool{1: true, 3: true, 6: true, 12: true}
 	if !validMonths[months] {
-		printError("Invalid billing period. Use 1, 3, 6, or 12 months.")
-		return fmt.Errorf("invalid billing period: %d", months)
+		return fmt.Errorf("invalid billing period: %d (use 1, 3, 6, or 12 months)", months)
 	}
 
 	// Calculate price

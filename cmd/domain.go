@@ -18,37 +18,36 @@ func cmdDomain(args []string) error {
 	switch args[0] {
 	case "enable":
 		if len(args) < 2 {
-			printError("Usage: dalang domain enable <vps-name>")
+			printUsage("Usage: dalang domain enable <vps-name>")
 			return fmt.Errorf("missing VPS name")
 		}
 		return domainEnable(args[1])
 	case "list", "ls":
 		if len(args) < 2 {
-			printError("Usage: dalang domain list <vps-name>")
+			printUsage("Usage: dalang domain list <vps-name>")
 			return fmt.Errorf("missing VPS name")
 		}
 		return domainList(args[1])
 	case "add":
 		if len(args) < 3 {
-			printError("Usage: dalang domain add <vps-name> <domain>")
+			printUsage("Usage: dalang domain add <vps-name> <domain>")
 			return fmt.Errorf("missing VPS name or domain")
 		}
 		return domainAdd(args[1], args[2])
 	case "verify":
 		if len(args) < 2 {
-			printError("Usage: dalang domain verify <domain>")
+			printUsage("Usage: dalang domain verify <domain>")
 			return fmt.Errorf("missing domain")
 		}
 		return domainVerify(args[1])
 	case "remove", "rm":
 		if len(args) < 2 {
-			printError("Usage: dalang domain remove <domain>")
+			printUsage("Usage: dalang domain remove <domain>")
 			return fmt.Errorf("missing domain")
 		}
 		return domainRemove(args[1])
 	default:
-		printError("Unknown domain subcommand: %s", args[0])
-		return fmt.Errorf("unknown subcommand: %s", args[0])
+		return fmt.Errorf("unknown domain subcommand: %s", args[0])
 	}
 }
 
@@ -102,7 +101,6 @@ func domainEnable(vpsName string) error {
 	}
 
 	if !result.Success {
-		printError(result.Message)
 		return errors.New(result.Message)
 	}
 
@@ -207,9 +205,8 @@ func domainAdd(vpsName, domain string) error {
 	}
 
 	if vps.CustomDomainEnabled != 1 {
-		printError("Custom domain is not enabled for %s", vpsName)
-		fmt.Printf("\nRun '%sdalang domain enable %s%s' first\n", colorCyan, vpsName, colorReset)
-		return fmt.Errorf("custom domain not enabled")
+		fmt.Printf("Run '%sdalang domain enable %s%s' first\n", colorCyan, vpsName, colorReset)
+		return fmt.Errorf("custom domain is not enabled for %s", vpsName)
 	}
 
 	printInfo("Adding domain %s...", domain)
@@ -226,10 +223,10 @@ func domainAdd(vpsName, domain string) error {
 		Success bool   `json:"success"`
 		Message string `json:"message"`
 		Data    struct {
-			Domain      string              `json:"domain"`
-			Status      string              `json:"status"`
-			DNSRecords  []map[string]string `json:"dns_records"`
-			Instructions string             `json:"instructions"`
+			Domain       string              `json:"domain"`
+			Status       string              `json:"status"`
+			DNSRecords   []map[string]string `json:"dns_records"`
+			Instructions string              `json:"instructions"`
 		} `json:"data"`
 	}
 
@@ -238,7 +235,6 @@ func domainAdd(vpsName, domain string) error {
 	}
 
 	if !result.Success {
-		printError(result.Message)
 		return errors.New(result.Message)
 	}
 
@@ -354,7 +350,6 @@ func domainRemove(domain string) error {
 	}
 
 	if !result.Success {
-		printError(result.Message)
 		return errors.New(result.Message)
 	}
 

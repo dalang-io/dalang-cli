@@ -20,7 +20,7 @@ func cmdCredit(args []string) error {
 		return creditHistory()
 	case "add":
 		if len(args) < 2 {
-			printError("Usage: dalang credit add <amount>")
+			printUsage("Usage: dalang credit add <amount>")
 			return fmt.Errorf("missing amount")
 		}
 		return creditAdd(args[1])
@@ -32,8 +32,7 @@ func cmdCredit(args []string) error {
 		if _, err := strconv.Atoi(args[0]); err == nil {
 			return creditAdd(args[0])
 		}
-		printError("Unknown credit subcommand: %s", args[0])
-		return fmt.Errorf("unknown subcommand: %s", args[0])
+		return fmt.Errorf("unknown credit subcommand: %s", args[0])
 	}
 }
 
@@ -152,8 +151,7 @@ func creditAdd(amountStr string) error {
 	actualAmount := amount * 1000
 
 	if actualAmount < 50000 {
-		printError("Minimum topup is 50K IDR (enter 50 or higher)")
-		return fmt.Errorf("minimum topup is 50K")
+		return fmt.Errorf("minimum topup is 50K IDR (enter 50 or higher)")
 	}
 
 	client, err := api.NewAuthenticatedClient()

@@ -51,8 +51,7 @@ func connectTerminal(name, mode string) error {
 	}
 
 	if strings.ToUpper(foundVPS.Status) != "RUNNING" {
-		printError("VPS '%s' is not running (status: %s)", name, foundVPS.Status)
-		return fmt.Errorf("VPS not running")
+		return fmt.Errorf("VPS '%s' is not running (status: %s)", name, foundVPS.Status)
 	}
 
 	// Load credentials for token

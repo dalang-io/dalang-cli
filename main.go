@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/dalang-io/dalang-cli/cmd"
@@ -21,7 +20,7 @@ func main() {
 	cmd.Commit = Commit
 
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		cmd.PrintFinalError(err)
 		os.Exit(1)
 	}
 }

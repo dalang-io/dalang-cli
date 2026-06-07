@@ -24,8 +24,7 @@ func cmdAuth(args []string) error {
 		printAuthHelp()
 		return nil
 	default:
-		printError("Unknown auth subcommand: %s", args[0])
-		return fmt.Errorf("unknown subcommand: %s", args[0])
+		return fmt.Errorf("unknown auth subcommand: %s", args[0])
 	}
 }
 

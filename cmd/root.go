@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 // Version info - set from main.go
@@ -14,8 +16,9 @@ var (
 	Commit    string
 )
 
-// ANSI color codes
-const (
+// ANSI color codes. These are vars (not consts) so they can be blanked out when
+// color is disabled — see applyColorSettings.
+var (
 	colorReset  = "\033[0m"
 	colorRed    = "\033[31m"
 	colorGreen  = "\033[32m"
@@ -31,11 +34,62 @@ var (
 	jsonOutput    bool
 	quietOutput   bool
 	yesFlag       bool
+	noColorFlag   bool
 	VerboseOutput bool
 )
 
+// applyColorSettings disables ANSI colors when output isn't an interactive
+// terminal, when NO_COLOR is set (https://no-color.org), or when --no-color was
+// passed — so colors never leak into pipes, files, or logs.
+func applyColorSettings() {
+	_, noColorEnv := os.LookupEnv("NO_COLOR")
+	if noColorFlag || noColorEnv || !term.IsTerminal(int(os.Stdout.Fd())) {
+		colorReset, colorRed, colorGreen = "", "", ""
+		colorYellow, colorBlue, colorCyan, colorBold = "", "", "", ""
+	}
+}
+
 func printError(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, colorRed+"Error: "+colorReset+format+"\n", args...)
+}
+
+// PrintFinalError prints the single top-level error for a failed command. It is
+// the one place errors returned from Execute() are shown, so commands should
+// return errors rather than printing them inline (which caused duplicate output).
+func PrintFinalError(err error) {
+	printError("%s", err.Error())
+}
+
+// printUsage prints a usage hint to stderr. It is intentionally not styled as an
+// error so it can accompany (rather than duplicate) the returned argument error.
+func printUsage(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
+}
+
+// knownCommands lists the primary command names used for "did you mean"
+// suggestions on an unknown command.
+var knownCommands = []string{
+	"auth", "credit", "service", "shell", "exec", "console",
+	"start", "stop", "delete", "domain", "price", "update",
+	"scp", "version", "help",
+}
+
+// suggestCommand returns the closest known command to the given input, or "" if
+// nothing is reasonably close.
+func suggestCommand(input string) string {
+	best := ""
+	bestDist := 1 << 30
+	for _, c := range knownCommands {
+		d := levenshtein(input, c)
+		if d < bestDist {
+			bestDist, best = d, c
+		}
+	}
+	// Only suggest when the typo is close (allow more slack for longer names).
+	if bestDist <= 3 && bestDist < len(best) {
+		return best
+	}
+	return ""
 }
 
 func printSuccess(format string, args ...interface{}) {
@@ -122,12 +176,11 @@ func Execute() error {
 		return nil
 	}
 
-	if len(args) == 1 && args[0] == "-v" {
-		return cmdVersion()
-	}
-
 	// Parse global flags first
 	args = parseGlobalFlags(args)
+
+	// Decide on colors now that --no-color has been parsed.
+	applyColorSettings()
 
 	if len(args) == 0 {
 		printHelp()
@@ -138,7 +191,7 @@ func Execute() error {
 	cmdArgs := args[1:]
 
 	switch command {
-	case "version", "-v", "--version":
+	case "version", "-V", "--version":
 		return cmdVersion()
 	case "help", "-h", "--help":
 		if len(cmdArgs) > 0 {
@@ -177,9 +230,10 @@ func Execute() error {
 	case "scp", "cp":
 		return cmdScp(cmdArgs)
 	default:
-		printError("Unknown command: %s", command)
-		fmt.Println("\nRun 'dalang help' for usage.")
-		return fmt.Errorf("unknown command: %s", command)
+		if s := suggestCommand(command); s != "" {
+			return fmt.Errorf("unknown command %q. Did you mean %q? (run 'dalang help')", command, s)
+		}
+		return fmt.Errorf("unknown command %q (run 'dalang help')", command)
 	}
 }
 
@@ -193,6 +247,8 @@ func parseGlobalFlags(args []string) []string {
 			quietOutput = true
 		case "--yes", "-y":
 			yesFlag = true
+		case "--no-color":
+			noColorFlag = true
 		case "--verbose", "-v":
 			VerboseOutput = true
 		default:
@@ -249,13 +305,14 @@ func printHelp() {
 	fmt.Println()
 	fmt.Printf("  %sOther%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "update" + colorReset + "                     Update CLI to latest version")
-	fmt.Println("    " + colorCyan + "version" + colorReset + "                    Show CLI version")
+	fmt.Println("    " + colorCyan + "version, -V" + colorReset + "                Show CLI version")
 	fmt.Println("    " + colorCyan + "help <command>" + colorReset + "             Show help for a specific command")
 	fmt.Println()
 	fmt.Println(colorYellow + "GLOBAL OPTIONS:" + colorReset)
 	fmt.Println("    --json          Output in JSON format (for scripting)")
 	fmt.Println("    --quiet, -q     Minimal output")
 	fmt.Println("    --yes, -y       Skip confirmation prompts")
+	fmt.Println("    --no-color      Disable colored output")
 	fmt.Println("    --verbose, -v   Show debug output")
 	fmt.Println()
 	fmt.Println(colorYellow + "EXAMPLES:" + colorReset)
@@ -336,8 +393,7 @@ func cmdHelpFor(command string) error {
 	case "scp", "cp":
 		printScpHelp()
 	default:
-		printError("Unknown command: %s", command)
-		return fmt.Errorf("unknown command: %s", command)
+		return fmt.Errorf("no help for unknown command: %s", command)
 	}
 	return nil
 }
