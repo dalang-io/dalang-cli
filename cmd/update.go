@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dalang-io/dalang-cli/internal/netdial"
 )
 
 const (
@@ -21,7 +23,12 @@ const (
 	versionInfoURL = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
 )
 
-var updateHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var updateHTTPClient = &http.Client{
+	Timeout: 60 * time.Second,
+	// Public-DNS fallback so `dalang update` also works on Android/Termux, which
+	// has no /etc/resolv.conf — see internal/netdial.
+	Transport: &http.Transport{DialContext: netdial.DialContext},
+}
 
 type VersionInfo struct {
 	Version string `json:"tag_name"`

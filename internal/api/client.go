@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dalang-io/dalang-cli/internal/config"
+	"github.com/dalang-io/dalang-cli/internal/netdial"
 )
 
 // Client is the API client
@@ -45,6 +46,9 @@ func NewClient() (*Client, error) {
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
+				// Falls back to public DNS when the system has no resolver config
+				// (Android/Termux has no /etc/resolv.conf) — see internal/netdial.
+				DialContext: netdial.DialContext,
 				TLSClientConfig: &tls.Config{
 					MinVersion: tls.VersionTLS12,
 				},
