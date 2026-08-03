@@ -101,7 +101,9 @@ func cmdUpdate(args []string) error {
 		writers = append(writers, pw)
 	}
 	_, err = io.Copy(io.MultiWriter(writers...), resp.Body)
-	tmpFile.Close()
+	if cerr := tmpFile.Close(); err == nil && cerr != nil {
+		err = cerr
+	}
 	if pw != nil {
 		pw.finish()
 	}

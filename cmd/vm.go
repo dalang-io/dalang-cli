@@ -60,6 +60,7 @@ func vmAction(name, action string) error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	// Find VPS by name
 	vpsID, displayName, err := resolveVPSName(client, name)
@@ -106,6 +107,7 @@ func vmDelete(name string) error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	// Find VPS by name
 	vpsID, displayName, err := resolveVPSName(client, name)

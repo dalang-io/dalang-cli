@@ -23,6 +23,10 @@ func TestParseScpEndpoint(t *testing.T) {
 		// Relative path with colon after slash should still be remote per scp rule
 		// because it does NOT start with "/" and the part before ":" is non-empty.
 		{"host:./relative", true, "host", "./relative"},
+		// Windows drive-letter paths are local, not remote <vps>:<path>.
+		{"C:\\data\\file.ts", false, "", "C:\\data\\file.ts"},
+		{"C:/data/file.ts", false, "", "C:/data/file.ts"},
+		{"d:\\tmp\\x.txt", false, "", "d:\\tmp\\x.txt"},
 	}
 	for _, tc := range cases {
 		got := parseScpEndpoint(tc.in)

@@ -116,6 +116,9 @@ func (c *Client) maybeRefreshToken() {
 	if err := json.Unmarshal(resp, &r); err != nil || !r.Success || r.Data.AccessToken == "" {
 		return
 	}
+	if r.Data.ExpiresIn <= 0 {
+		return // unknown lifetime — don't overwrite a still-valid expiry
+	}
 
 	email := r.Data.Email
 	if email == "" {

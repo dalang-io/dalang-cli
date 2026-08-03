@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,11 @@ func (e scpEndpoint) String() string {
 	return e.Path
 }
 
+// windowsDriveRe matches a Windows drive-letter path like "C:\foo" or "C:/foo".
+// It is checked before the host:path split so drive-letter paths are never
+// mistaken for a remote <vps>:path operand on Windows.
+var windowsDriveRe = regexp.MustCompile(`^[A-Za-z]:[/\\]`)
+
 // parseScpEndpoint follows scp's rule: a leading "/" or no ":" → local;
 // otherwise the substring before the first ":" is the host.
 func parseScpEndpoint(s string) scpEndpoint {
@@ -40,6 +46,9 @@ func parseScpEndpoint(s string) scpEndpoint {
 		return scpEndpoint{Path: s}
 	}
 	if strings.HasPrefix(s, "/") {
+		return scpEndpoint{Path: s}
+	}
+	if windowsDriveRe.MatchString(s) {
 		return scpEndpoint{Path: s}
 	}
 	colon := strings.IndexByte(s, ':')

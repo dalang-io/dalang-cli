@@ -41,6 +41,7 @@ func creditBalance() error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	resp, err := client.Get("/credits/balance")
 	if err != nil {
@@ -76,6 +77,7 @@ func creditHistory() error {
 	if err != nil {
 		return err
 	}
+	client.Verbose = VerboseOutput
 
 	resp, err := client.Get("/credits/transactions?page=1&limit=25")
 	if err != nil {
