@@ -1,8 +1,8 @@
 module github.com/dalang-io/dalang-cli
 
-go 1.24.0
+go 1.25.0
 
-toolchain go1.24.12
+toolchain go1.25.12
 
 require (
 	github.com/gorilla/websocket v1.5.3
