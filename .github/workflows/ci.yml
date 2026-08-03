@@ -38,6 +38,10 @@ jobs:
           - goos: linux
             goarch: arm64
             artifact_name: dalang-linux-arm64
+          - goos: linux
+            goarch: arm
+            goarm: "7"
+            artifact_name: dalang-linux-arm
           - goos: android
             goarch: arm64
             artifact_name: dalang-android-arm64
@@ -77,6 +81,7 @@ jobs:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
         run: |
           mkdir -p dist
           go build -trimpath \
@@ -118,6 +123,7 @@ jobs:
           files: |
             dist/dalang-linux-amd64
             dist/dalang-linux-arm64
+            dist/dalang-linux-arm
             dist/dalang-android-arm64
             dist/dalang-darwin-amd64
             dist/dalang-darwin-arm64

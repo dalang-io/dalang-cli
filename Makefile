@@ -12,8 +12,10 @@ LDFLAGS := -s -w \
 BINARY_NAME := dalang
 DIST_DIR := dist
 
-# Build targets
-PLATFORMS := linux/amd64 linux/arm64 android/arm64 darwin/amd64 darwin/arm64 windows/amd64
+# Build targets. linux/arm is armv7 (32-bit) — covers 32-bit phones (via Termux)
+# and 32-bit ARM boards (older Raspberry Pi, etc.). True android/arm needs the
+# NDK/cgo, so the static linux/arm binary is used for 32-bit instead.
+PLATFORMS := linux/amd64 linux/arm64 linux/arm android/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
 .PHONY: all build clean test dist checksums help
 
@@ -50,7 +52,8 @@ dist: clean
 		if [ $$GOOS = "android" ]; then \
 			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
 		elif [ $$GOOS = "linux" ]; then \
-			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
+			GOARM=$$( [ $$GOARCH = "arm" ] && echo 7 || echo "" ); \
+			CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH GOARM=$$GOARM go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
 		else \
 			GOOS=$$GOOS GOARCH=$$GOARCH go build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/$$output_name . || exit 1; \
 		fi; \
