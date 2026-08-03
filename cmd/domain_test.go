@@ -2,6 +2,21 @@ package cmd
 
 import "testing"
 
+func TestDnsCheckRecordLabel(t *testing.T) {
+	cases := []struct{ key, want string }{
+		{"cname", "CNAME"},
+		{"ownership_txt", "Ownership TXT"},
+		{"ssl_txt", "SSL TXT"},
+		{"unknown", "(?)"},
+	}
+	for _, c := range cases {
+		if got := dnsCheckRecordLabel(c.key); got != c.want {
+			t.Errorf("dnsCheckRecordLabel(%q) = %q, want %q", c.key, got, c.want)
+		}
+	}
+}
+
+
 func TestCmdDomainRouting(t *testing.T) {
 	resetGlobalFlags()
 	t.Cleanup(resetGlobalFlags)

@@ -144,10 +144,18 @@ func domainList(vpsName string) error {
 	var result struct {
 		Success bool `json:"success"`
 		Data    []struct {
-			ID        int    `json:"id"`
-			Domain    string `json:"domain"`
-			Status    string `json:"status"`
-			CreatedAt string `json:"created_at"`
+			ID             int      `json:"id"`
+			Domain         string   `json:"domain"`
+			Status         string   `json:"status"`
+			CreatedAt      string   `json:"created_at"`
+			Verified       bool     `json:"verified"`
+			MissingRecords []string `json:"missing_records"`
+			DNSCheck       map[string]struct {
+				Name     string `json:"name"`
+				Expected string `json:"expected"`
+				Found    string `json:"found"`
+				OK       bool   `json:"ok"`
+			} `json:"dns_check"`
 		} `json:"data"`
 	}
 
@@ -169,22 +177,63 @@ func domainList(vpsName string) error {
 		return nil
 	}
 
-	fmt.Printf("%-30s %-12s %s\n", "DOMAIN", "STATUS", "CREATED")
-	fmt.Println(strings.Repeat("─", 60))
-
 	for _, d := range result.Data {
 		statusColor := colorYellow
-		if d.Status == "active" {
+		switch d.Status {
+		case "active":
 			statusColor = colorGreen
-		} else if d.Status == "failed" {
+			d.Verified = true
+		case "failed":
 			statusColor = colorRed
 		}
 
-		fmt.Printf("%-30s %s%-12s%s %s\n",
-			d.Domain,
-			statusColor, d.Status, colorReset,
-			formatDate(d.CreatedAt),
-		)
+		verifiedMark := colorRed + "✗ not verified" + colorReset
+		if d.Verified {
+			verifiedMark = colorGreen + "✓ verified" + colorReset
+		}
+
+		fmt.Printf("\n  %s%s%s  [%s]\n", colorBold, d.Domain, colorReset, verifiedMark)
+		fmt.Printf("  Status: %s%s%s   Added: %s\n",
+			statusColor, d.Status, colorReset, formatDate(d.CreatedAt))
+
+		if len(d.DNSCheck) > 0 {
+			fmt.Println("  DNS records:")
+			for _, key := range []string{"cname", "ownership_txt", "ssl_txt"} {
+				e, ok := d.DNSCheck[key]
+				if !ok {
+					continue
+				}
+				mark := colorGreen + "✓" + colorReset
+				recType := dnsCheckRecordLabel(key)
+				if !e.OK {
+					mark = colorRed + "✗" + colorReset
+				}
+				name := e.Name
+				if name == "" {
+					name = d.Domain
+				}
+				extra := ""
+				if e.Expected != "" {
+					extra = " -> " + e.Expected
+				}
+				fmt.Printf("    %s  %-13s %s%s\n", mark, recType, name, extra)
+			}
+		}
+
+		switch {
+		case len(d.MissingRecords) > 0:
+			fmt.Printf("  %sMissing records (not yet added):%s\n", colorYellow, colorReset)
+			for _, m := range d.MissingRecords {
+				fmt.Printf("    - %s\n", m)
+			}
+			if d.Status != "active" {
+				fmt.Printf("    After adding, run: %sdalang domain verify %s%s\n", colorCyan, d.Domain, colorReset)
+			}
+		case !d.Verified:
+			fmt.Printf("  %sNo DNS records recorded yet%s\n", colorYellow, colorReset)
+		default:
+			fmt.Printf("  All DNS records configured.\n")
+		}
 	}
 	fmt.Println()
 
@@ -391,4 +440,18 @@ func printDomainHelp() {
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 	)
+}
+
+// dnsCheckRecordLabel returns a human-readable label for a backend dns_check key.
+func dnsCheckRecordLabel(key string) string {
+	switch key {
+	case "cname":
+		return "CNAME"
+	case "ownership_txt":
+		return "Ownership TXT"
+	case "ssl_txt":
+		return "SSL TXT"
+	default:
+		return "(?)"
+	}
 }
