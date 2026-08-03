@@ -9,36 +9,36 @@ import (
 )
 
 func cmdStart(args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 		printStartHelp()
-		if len(args) == 0 {
-			return fmt.Errorf("missing service name")
-		}
 		return nil
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("missing service name. Usage: dalang start <vm-name>")
 	}
 
 	return vmAction(args[0], "start")
 }
 
 func cmdStop(args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 		printStopHelp()
-		if len(args) == 0 {
-			return fmt.Errorf("missing service name")
-		}
 		return nil
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("missing service name. Usage: dalang stop <vm-name>")
 	}
 
 	return vmAction(args[0], "stop")
 }
 
 func cmdDelete(args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 		printDeleteHelp()
-		if len(args) == 0 {
-			return fmt.Errorf("missing service name")
-		}
 		return nil
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("missing service name. Usage: dalang delete <vm-name>")
 	}
 
 	name := args[0]

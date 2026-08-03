@@ -108,6 +108,13 @@ func cmdScp(args []string) error {
 		return nil
 	}
 
+	// The global --quiet/-q flag is stripped by parseGlobalFlags before cmdScp
+	// runs, so it never reaches the per-command -q switch above. Honor the global
+	// flag too so `dalang scp -q` really suppresses progress/info output.
+	if quietOutput {
+		flags.quiet = true
+	}
+
 	dst := parseScpEndpoint(positional[len(positional)-1])
 	srcs := make([]scpEndpoint, 0, len(positional)-1)
 	for _, p := range positional[:len(positional)-1] {

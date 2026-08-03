@@ -155,8 +155,7 @@ func authStatus() error {
 			fmt.Println(string(data))
 			return nil
 		}
-		printWarn("Not authenticated. Run 'dalang auth' to login.")
-		return nil
+		return fmt.Errorf("not authenticated. Run 'dalang auth' to login")
 	}
 
 	// Verify token by calling /auth/me
@@ -171,8 +170,7 @@ func authStatus() error {
 			fmt.Println(string(data))
 			return nil
 		}
-		printWarn("Credentials found but may be invalid: %v", err)
-		return nil
+		return fmt.Errorf("credentials found but may be invalid: %v", err)
 	}
 
 	resp, err := client.Get("/auth/me")
@@ -186,8 +184,7 @@ func authStatus() error {
 			fmt.Println(string(data))
 			return nil
 		}
-		printWarn("Token expired or invalid. Run 'dalang auth' to re-login.")
-		return nil
+		return fmt.Errorf("token expired or invalid. Run 'dalang auth' to re-login")
 	}
 
 	var meResp api.MeResponse

@@ -112,7 +112,8 @@ func printWarn(format string, args ...interface{}) {
 
 func PrintDebug(format string, args ...interface{}) {
 	if VerboseOutput {
-		fmt.Printf(colorCyan+"[DEBUG] "+colorReset+format+"\n", args...)
+		// stderr so [DEBUG] lines never pollute stdout (which may carry JSON).
+		fmt.Fprintf(os.Stderr, colorCyan+"[DEBUG] "+colorReset+format+"\n", args...)
 	}
 }
 

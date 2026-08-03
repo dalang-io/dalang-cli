@@ -66,10 +66,6 @@ func cmdUpload(args []string) error {
 		return nil
 	}
 
-	if !quietOutput {
-		fmt.Fprintf(os.Stderr, "%snote:%s `dalang upload` is the legacy single-file form; `dalang scp` supports directories, multi-source, and host:path syntax.\n", colorYellow, colorReset)
-	}
-
 	vpsName := args[0]
 	localPath := args[1]
 	remotePath := args[2]
@@ -178,10 +174,6 @@ func cmdDownload(args []string) error {
 	if len(args) < 2 || args[0] == "--help" || args[0] == "-h" {
 		printDownloadHelp()
 		return nil
-	}
-
-	if !quietOutput {
-		fmt.Fprintf(os.Stderr, "%snote:%s `dalang download` is the legacy single-file form; `dalang scp` supports directories, multi-source, and host:path syntax.\n", colorYellow, colorReset)
 	}
 
 	vpsName := args[0]

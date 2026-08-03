@@ -17,8 +17,7 @@ func cmdExec(args []string) error {
 		return nil
 	}
 	if len(args) < 2 {
-		printExecHelp()
-		return fmt.Errorf("missing arguments")
+		return fmt.Errorf("missing arguments. Usage: dalang exec <vm-name> \"command\"")
 	}
 
 	vmName := args[0]
@@ -92,20 +91,23 @@ func executeCommand(name, command string) error {
 
 	// Output based on format
 	if jsonOutput {
-		// JSON output for automation
+		// JSON output for automation. The exit_code is embedded in the object, so
+		// the machine consumer reads it directly; we return nil (exit 0) so stdout
+		// JSON stays the single, parseable output without a trailing "Error:" line.
 		jsonResult, _ := json.MarshalIndent(map[string]interface{}{
 			"output":    result.Data.Output,
 			"exit_code": result.Data.ExitCode,
 		}, "", "  ")
 		fmt.Println(string(jsonResult))
-	} else {
-		// Plain output
-		if result.Data.Output != "" {
-			fmt.Print(result.Data.Output)
-			// Ensure trailing newline
-			if !strings.HasSuffix(result.Data.Output, "\n") {
-				fmt.Println()
-			}
+		return nil
+	}
+
+	// Plain output
+	if result.Data.Output != "" {
+		fmt.Print(result.Data.Output)
+		// Ensure trailing newline
+		if !strings.HasSuffix(result.Data.Output, "\n") {
+			fmt.Println()
 		}
 	}
 

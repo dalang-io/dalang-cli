@@ -14,24 +14,24 @@ import (
 )
 
 func cmdShell(args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 		printShellHelp()
-		if len(args) == 0 {
-			return fmt.Errorf("missing service name")
-		}
 		return nil
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("missing service name. Usage: dalang shell <vm-name>")
 	}
 
 	return connectTerminal(args[0], "shell")
 }
 
 func cmdConsole(args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
 		printConsoleHelp()
-		if len(args) == 0 {
-			return fmt.Errorf("missing service name")
-		}
 		return nil
+	}
+	if len(args) == 0 {
+		return fmt.Errorf("missing service name. Usage: dalang console <vm-name>")
 	}
 
 	return connectTerminal(args[0], "console")

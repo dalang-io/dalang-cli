@@ -54,8 +54,7 @@ func creditBalance() error {
 	}
 
 	if jsonOutput {
-		data, _ := json.MarshalIndent(balanceResp.Data, "", "  ")
-		fmt.Println(string(data))
+		fmt.Println(string(resp))
 		return nil
 	}
 
@@ -90,8 +89,7 @@ func creditHistory() error {
 	}
 
 	if jsonOutput {
-		data, _ := json.MarshalIndent(txResp.Data, "", "  ")
-		fmt.Println(string(data))
+		fmt.Println(string(resp))
 		return nil
 	}
 
@@ -176,8 +174,7 @@ func creditAdd(amountStr string) error {
 	}
 
 	if jsonOutput {
-		data, _ := json.MarshalIndent(topupResp.Data, "", "  ")
-		fmt.Println(string(data))
+		fmt.Println(string(resp))
 		return nil
 	}
 
