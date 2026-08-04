@@ -87,6 +87,7 @@ func connectTerminal(name, mode string) error {
 				Success bool `json:"success"`
 				Data    struct {
 					CPUSeconds  float64 `json:"cpu_seconds"`
+					CPUPercent  float64 `json:"cpu_percent"`
 					MemoryUsed  int64   `json:"memory_used"`
 					MemoryTotal int64   `json:"memory_total"`
 					DiskUsed    int64   `json:"disk_used"`
@@ -100,7 +101,12 @@ func connectTerminal(name, mode string) error {
 				metrics, haveMetrics := fetchVMMetrics(client, foundVPS.ID)
 				if d.MemoryTotal > 0 || d.DiskTotal > 0 || haveMetrics {
 					fmt.Printf("\n%s%s%s — Resource Usage\n", colorBold, displayName, colorReset)
-					if haveMetrics {
+					// CPU utilization is computed server-side (/vps/usage →
+					// cpu_percent); the in-VM load average is shown only as a hint.
+					cpuPct := d.CPUPercent
+					if cpuPct > 0 && haveMetrics {
+						printVMUsageCPU(cpuPct, metrics)
+					} else if haveMetrics {
 						printVMMetrics(metrics)
 					}
 					if d.MemoryTotal > 0 {

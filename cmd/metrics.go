@@ -96,6 +96,7 @@ func formatUptime(sec float64) string {
 }
 
 // printVMMetrics prints the Uptime and CPU-load lines for the resource panel.
+// Used as a fallback when the API has not yet produced a cpu_percent.
 func printVMMetrics(m vmMetrics) {
 	if m.uptimeSec > 0 {
 		fmt.Printf("  Uptime: %s\n", formatUptime(m.uptimeSec))
@@ -104,5 +105,17 @@ func printVMMetrics(m vmMetrics) {
 		pct := m.load1 / float64(m.nproc) * 100
 		fmt.Printf("  CPU:    %s %.0f%% (load %.2f, %.2f, %.2f over %d vCPU)\n",
 			renderBar(pct, 20), pct, m.load1, m.load5, m.load15, m.nproc)
+	}
+}
+
+// printVMUsageCPU prints the resource panel using the server-computed CPU
+// utilization (cpu_percent), with uptime and load average shown as hints.
+func printVMUsageCPU(cpuPct float64, m vmMetrics) {
+	if m.uptimeSec > 0 {
+		fmt.Printf("  Uptime: %s\n", formatUptime(m.uptimeSec))
+	}
+	fmt.Printf("  CPU:    %s %.0f%%\n", renderBar(cpuPct, 20), cpuPct)
+	if m.nproc > 0 {
+		fmt.Printf("          load %.2f, %.2f, %.2f over %d vCPU\n", m.load1, m.load5, m.load15, m.nproc)
 	}
 }
