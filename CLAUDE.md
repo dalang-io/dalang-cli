@@ -40,6 +40,30 @@ Other terminal details: disconnect is the SSH-style `~.` escape (Enter, then til
 
 `dalang auth` uses an OAuth-style device flow (`CLIAuthInitResponse` → poll `CLIAuthPollResponse`), then persists `access_token`/`refresh_token` to `~/.dalang/credentials`.
 
+## Pricing — a fourth copy of the formula lives here
+
+`cmd/price.go` reimplements the VPS pricing formula (`PricePerCPU`,
+`PricePerGBRAM`, …) so `dalang price` can quote offline. It is a **copy**, and it
+has already drifted from the backend in two ways:
+
+- bandwidth blocks are rounded **up** (`(extra + 19) / 20`) where
+  `api.dalang.io/handlers/vps_order.go:vpsConfigNetPrice` truncates;
+- RAM MB→GB is rounded **up** where the backend uses integer division.
+
+Both agree only because the web UI offers bandwidth in multiples of 20 and RAM in
+whole GB. A CLI-initiated order with any other value would quote a number the API
+does not honour — and `HandlePayWithCredits` treats a client amount below the
+server price as fraud, so the customer gets a 403, not a corrected total.
+
+If you touch pricing, the authority is the backend. Rates also exist in
+`dalang.io/src/lib/vpsPricing.js`, `dalang.io/src/lib/components/vps/utils.ts`
+and inline in the VPS order page. The rules are in
+`../api.dalang.io/OPERATIONS.md` §4.
+
+The CLI never computes what a customer is *charged* — it only displays estimates.
+Keep it that way: amounts must come from the API response, not from local
+arithmetic.
+
 ## Conventions
 
 - **Cross-platform matters.** Targets include Android/Termux and Windows. Note the `_unix.go`/`_windows.go` build-tag pairs (`console_*.go`, `signal_*.go`), the Android arg-fixup in `Execute()` (the linker prepends the binary path), and Windows console setup (`enableWindowsConsole`). Avoid `syscall.Kill` and similar Unix-only calls in shared files.
