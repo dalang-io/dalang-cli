@@ -2,7 +2,7 @@
 
 This document helps AI assistants understand and use the Dalang CLI tool effectively.
 
-_Up to date with Dalang CLI **v1.11.x**._
+_Verified against the CLI source and the api.dalang.io image map on 2026-09-20 (CLI **v1.18.x**)._
 
 ## Overview
 
@@ -128,13 +128,16 @@ dalang price --cpu 2 --ram 2G --storage 20G --bandwidth 40
 
 ### Create New VPS
 ```bash
-# Basic VM with Ubuntu 24.04 (default)
+# Basic VM — no --image means Ubuntu 26.04, the newest
 dalang service create --name MyVM --cpu 2 --ram 1G --storage 10G
 
 # Specify OS version
 dalang service create --name WebServer --cpu 1 --ram 1G --image ubuntu:24.04
 dalang service create --name DevBox --cpu 2 --ram 2G --image ubuntu:22.04
 dalang service create --name Database --cpu 2 --ram 4G --image debian:12
+
+# Always pin the version you want. A bare name follows the newest release, so
+# the same command can give you a different OS after a cluster image update.
 ```
 
 ### Upgrade or Extend a VPS
@@ -151,21 +154,35 @@ prompt for confirmation (skip with `-y`).
 
 ## Available OS Images
 
-All images support incus-agent for shell/console access.
+The value passed to `--image` is matched loosely by the API (case-insensitive,
+`:` or `-` as the separator), then resolved to a cluster image.
 
-| Image Name | Description | Cloud-Init |
-|------------|-------------|------------|
-| `ubuntu` | Ubuntu 24.04 LTS (default) | Yes |
-| `ubuntu:24.04` | Ubuntu 24.04 LTS | Yes |
-| `ubuntu:22.04` | Ubuntu 22.04 LTS | Yes |
-| `debian` | Debian 12 (bookworm) | Yes |
-| `debian:12` | Debian 12 (bookworm) | Yes |
-| `debian:11` | Debian 11 (bullseye) | Yes |
-| `centos` | CentOS Stream 9 | Yes |
-| `rocky` | Rocky Linux 9 | Yes |
-| `almalinux` | AlmaLinux 9 | Yes |
+| `--image` value | You get |
+|---|---|
+| `ubuntu` | Ubuntu 26.04 (bare name = newest) |
+| `ubuntu:26.04` | Ubuntu 26.04 |
+| `ubuntu:24.04` | Ubuntu 24.04 LTS |
+| `ubuntu:22.04` | Ubuntu 22.04 LTS |
+| `debian` | Debian 13 (bare name = newest) |
+| `debian:13` | Debian 13 (trixie) |
+| `debian:12` | Debian 12 (bookworm) |
+| `debian:11` | Debian 11 (bullseye) |
+| `rocky` | Rocky Linux 9 |
+| `rocky:10` | Rocky Linux 10 |
+| `almalinux` | AlmaLinux 9 |
+| `almalinux:10` | AlmaLinux 10 |
+| `fedora` | Fedora 44 |
 
-**Note**: All VPS images include incus-agent for `dalang shell`, `dalang exec`, and `dalang console` access.
+**An unrecognised value is not an error — it silently becomes Ubuntu 26.04.**
+So does `centos`, which this guide used to list: there is no CentOS image on the
+cluster. Ask for `centos` and you get Ubuntu without being told.
+
+`ubuntu:20.04` and `ubuntu:18.04` are half-supported and best avoided: the order
+is accepted and the VPS is *labelled* with that version, but the cluster has no
+such image and provisions Ubuntu 26.04 instead, so the label lies.
+
+**Note**: images include incus-agent, which is what `dalang shell`,
+`dalang exec` and `dalang console` connect through.
 
 ## VPS Pricing
 
@@ -261,6 +278,25 @@ dalang credit add 100     # Top up 100K IDR
 dalang credit add 500     # Top up 500K IDR
 ```
 
+## Reading `dalang credit history`
+
+Each row is coloured by transaction type. The amount carries its own sign —
+outgoing rows are stored negative — so a deduction reads `Rp -30.000`.
+
+| Type | Direction | Meaning |
+|---|---|---|
+| `topup` | in | Customer added credit |
+| `commission` | in | Affiliate commission |
+| `refund` | in | Refund credited back |
+| `signup_bonus` | in | Signup or referral bonus |
+| `admin_credit` | in | Granted by an admin |
+| `spend` | out | Paid for a service |
+| `admin_debit` | out | Taken back by an admin — a manual refund paid out by bank transfer, or a balance reset |
+| `expired` | out | Credit lot expired (legacy; credits no longer expire) |
+
+An unknown type still prints with its amount, uncoloured, rather than being
+dropped — so a type added on the server side degrades quietly here.
+
 ## Command Reference
 
 | Command | Description |
@@ -295,6 +331,10 @@ dalang credit add 500     # Top up 500K IDR
 | `dalang update` | Update CLI to latest version |
 | `dalang version` | Show CLI version (also `dalang -V`) |
 | `dalang help <command>` | Show command help |
+
+Several commands have aliases the dispatcher accepts: `credits`, `services`,
+`domains`, `pricing`, `push` (upload), `pull` (download), `cp` (scp), and
+`ls`/`rm` inside `dalang domain`.
 
 ## Global Options
 
@@ -370,13 +410,16 @@ On Windows, UTF-8 glyphs and ANSI colors render correctly in PowerShell/conhost.
 
 Common errors and solutions:
 
+Most of these come from the API and are printed verbatim, so the exact wording
+can change server-side; match on the gist, not the string.
+
 | Error | Solution |
 |-------|----------|
 | "not authenticated" | Run `dalang auth` first |
 | "VPS not found" | Check name with `dalang service list` (names are fuzzy-matched) |
 | "VPS not running" | Start with `dalang start <name>` |
 | "insufficient credits" | Top up with `dalang credit add <amount>` |
-| "custom domain not enabled" | Run `dalang domain enable <vps>` first |
+| "Custom domain feature is not enabled for this VPS" | Run `dalang domain enable <vps>` first (it is a paid add-on) |
 | "new values must be higher than current" | `service upgrade` only scales up |
 
 ## AI Usage Tips
