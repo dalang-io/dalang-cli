@@ -47,8 +47,7 @@ Other terminal details: disconnect is the SSH-style `~.` escape (Enter, then til
 had drifted: bandwidth blocks were rounded **up** (`(extra + 19) / 20`) where
 both backend functions truncate, so `dalang price --bandwidth 30` quoted
 Rp 20.000 more than the customer would be charged — for anything between 21 and
-39 Mbps. Fixed on `main` after v1.18.1 (ships in the next tag); `bandwidthBlocks`
-is now the single copy and
+39 Mbps. Fixed in **v1.18.2**; `bandwidthBlocks` is now the single copy and
 `TestCalculateVPSPrice_AgreesWithBackend` pins it to the backend's arithmetic
 across a table of configurations. The test that existed before asserted the
 rounding-up behaviour, which is why the drift survived.
