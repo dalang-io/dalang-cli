@@ -44,16 +44,20 @@ Other terminal details: disconnect is the SSH-style `~.` escape (Enter, then til
 
 `cmd/price.go` reimplements the VPS pricing formula (`PricePerCPU`,
 `PricePerGBRAM`, …) so `dalang price` can quote offline. It is a **copy**, and it
-has already drifted from the backend in two ways:
+had drifted: bandwidth blocks were rounded **up** (`(extra + 19) / 20`) where
+both backend functions truncate, so `dalang price --bandwidth 30` quoted
+Rp 20.000 more than the customer would be charged — for anything between 21 and
+39 Mbps. Fixed in v1.18.1; `bandwidthBlocks` is now the single copy and
+`TestCalculateVPSPrice_AgreesWithBackend` pins it to the backend's arithmetic
+across a table of configurations. The test that existed before asserted the
+rounding-up behaviour, which is why the drift survived.
 
-- bandwidth blocks are rounded **up** (`(extra + 19) / 20`) where
-  `api.dalang.io/handlers/vps_order.go:vpsConfigNetPrice` truncates;
-- RAM MB→GB is rounded **up** where the backend uses integer division.
+RAM MB→GB rounds **up** here and in `calculateVPSPrice`, the function the order
+path actually uses — those agree. (`vpsConfigNetPrice` takes RAM in GB already
+and never converts, so it is not a third opinion.)
 
-Both agree only because the web UI offers bandwidth in multiples of 20 and RAM in
-whole GB. A CLI-initiated order with any other value would quote a number the API
-does not honour — and `HandlePayWithCredits` treats a client amount below the
-server price as fraud, so the customer gets a 403, not a corrected total.
+Note the order endpoint expects **RAM in MB** and converts (`req.RAM / 1024`,
+commented "CLI sends RAM in MB"); storage and bandwidth go as GB and Mbps.
 
 If you touch pricing, the authority is the backend. Rates also exist in
 `dalang.io/src/lib/vpsPricing.js`, `dalang.io/src/lib/components/vps/utils.ts`
