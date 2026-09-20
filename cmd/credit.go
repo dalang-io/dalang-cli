@@ -105,23 +105,9 @@ func creditHistory() error {
 
 	for _, tx := range txResp.Data.Transactions {
 		date := formatDate(tx.CreatedAt)
-		typeColor := colorReset
-		amountStr := formatIDR(tx.Amount)
+		var typeColor, amountStr string
 
-		switch tx.Type {
-		case "topup":
-			typeColor = colorGreen
-			amountStr = "+" + amountStr
-		case "spend":
-			typeColor = colorRed
-			amountStr = "-" + amountStr
-		case "commission":
-			typeColor = colorCyan
-			amountStr = "+" + amountStr
-		case "refund":
-			typeColor = colorYellow
-			amountStr = "+" + amountStr
-		}
+		typeColor, amountStr = renderTransaction(tx.Type, tx.Amount)
 
 		desc := tx.Description
 		if len(desc) > 25 {
@@ -186,6 +172,33 @@ func creditAdd(amountStr string) error {
 	printInfo("Open the URL above to complete payment")
 
 	return nil
+}
+
+// renderTransaction picks the colour and the signed amount for one credit
+// transaction. The sign comes from the stored amount — outgoing rows (spend,
+// admin_debit, expired) are already negative — so nothing here prepends a second
+// one. It used to: "spend" printed "-" in front of formatIDR(-8800), which the
+// customer saw as "-Rp -8.800".
+//
+// Types must match the API (specs/10-wallet-affiliate.md). An unknown type still
+// prints, uncoloured, with its amount intact.
+func renderTransaction(txType string, amount int64) (color, amountStr string) {
+	amountStr = formatIDR(amount)
+	switch txType {
+	case "topup":
+		color = colorGreen
+	case "commission":
+		color = colorCyan
+	case "refund", "signup_bonus":
+		color = colorYellow
+	case "admin_credit":
+		color = colorCyan
+	case "spend", "admin_debit", "expired":
+		color = colorRed
+	default:
+		color = colorReset
+	}
+	return color, amountStr
 }
 
 func formatIDR(amount int64) string {

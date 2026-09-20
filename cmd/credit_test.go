@@ -1,6 +1,9 @@
 package cmd
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestFormatIDR(t *testing.T) {
 	tests := []struct {
@@ -124,5 +127,54 @@ func TestCreditAddValidation(t *testing.T) {
 				t.Fatalf("creditAdd(%q) error = %v, wantErr %v", tt.amount, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// The amount already carries its sign — outgoing rows are stored negative — so
+// the renderer must not prepend another one. It used to for "spend", which the
+// customer read as "-Rp -8.800" in `dalang credit history`.
+func TestRenderTransaction_SignIsNotDoubled(t *testing.T) {
+	for _, tc := range []struct {
+		txType string
+		amount int64
+		want   string
+	}{
+		{"spend", -8800, "Rp -8.800"},
+		{"admin_debit", -30000, "Rp -30.000"},
+		{"expired", -5000, "Rp -5.000"},
+		{"topup", 100000, "Rp 100.000"},
+		{"admin_credit", 50000, "Rp 50.000"},
+	} {
+		_, got := renderTransaction(tc.txType, tc.amount)
+		if got != tc.want {
+			t.Errorf("renderTransaction(%q, %d) = %q, want %q", tc.txType, tc.amount, got, tc.want)
+		}
+		if strings.Contains(got, "--") || strings.Contains(got, "-Rp -") {
+			t.Errorf("%q rendered a doubled sign: %q", tc.txType, got)
+		}
+	}
+}
+
+// Every type the API can emit must be coloured, or a customer sees a bare row
+// among coloured ones and wonders what it is. The list mirrors
+// specs/10-wallet-affiliate.md.
+func TestRenderTransaction_AllAPITypesAreColoured(t *testing.T) {
+	incoming := []string{"topup", "commission", "refund", "signup_bonus", "admin_credit"}
+	outgoing := []string{"spend", "admin_debit", "expired"}
+
+	for _, ty := range append(append([]string{}, incoming...), outgoing...) {
+		color, _ := renderTransaction(ty, 1000)
+		if color == colorReset {
+			t.Errorf("type %q is one the API emits but renders uncoloured", ty)
+		}
+	}
+	for _, ty := range outgoing {
+		if color, _ := renderTransaction(ty, -1000); color != colorRed {
+			t.Errorf("outgoing type %q should be red, got %q", ty, color)
+		}
+	}
+	// Anything unknown still prints rather than being dropped.
+	if _, amt := renderTransaction("something_new", -1234); amt != "Rp -1.234" {
+		t.Errorf("an unknown type must still show its amount, got %q", amt)
 	}
 }
