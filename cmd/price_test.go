@@ -1,6 +1,9 @@
 package cmd
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCalculateVPSPrice(t *testing.T) {
 	tests := []struct {
@@ -203,6 +206,64 @@ func TestBandwidthBlocks_TruncatesLikeTheBackend(t *testing.T) {
 	} {
 		if got := bandwidthBlocks(bw); got != want {
 			t.Errorf("bandwidthBlocks(%d) = %d, want %d", bw, got, want)
+		}
+	}
+}
+
+// The CLI accepted any number and let the API decide. That is expensive: an
+// out-of-range spec makes isAllowedVPSSpec call triggerPricingFraud, so a
+// customer who typed "--cpu 3" is recorded as attempting fraud. These lists
+// mirror api.dalang.io/handlers/vps_order.go and the dashboard's dropdowns.
+func TestValidateVPSSpec(t *testing.T) {
+	if err := ValidateVPSSpec(2, 2, 20, 40); err != nil {
+		t.Fatalf("a configuration the dashboard offers must be accepted: %v", err)
+	}
+	// Every combination the platform sells must pass.
+	for _, cpu := range AllowedVCPU {
+		for _, ram := range AllowedRAMGB {
+			if err := ValidateVPSSpec(cpu, ram, 10, 20); err != nil {
+				t.Errorf("%d vCPU / %d GB should be sellable: %v", cpu, ram, err)
+			}
+		}
+	}
+
+	for _, tc := range []struct {
+		name                  string
+		cpu, ram, storage, bw int
+	}{
+		{"vCPU between the options", 3, 2, 10, 20},
+		{"RAM between the options", 2, 3, 10, 20},
+		{"storage between the options", 2, 2, 15, 20},
+		{"bandwidth between the options", 2, 2, 10, 30},
+		{"zero everything", 0, 0, 0, 0},
+	} {
+		if err := ValidateVPSSpec(tc.cpu, tc.ram, tc.storage, tc.bw); err == nil {
+			t.Errorf("%s: expected a refusal", tc.name)
+		} else if !strings.Contains(err.Error(), "choose one of") {
+			t.Errorf("%s: the error should list the options, got %q", tc.name, err)
+		}
+	}
+}
+
+// The lists must not drift from the backend's allowed* maps.
+func TestAllowedSpecsMatchBackend(t *testing.T) {
+	for name, pair := range map[string][2][]int{
+		"vCPU":      {AllowedVCPU, {1, 2, 4, 6, 8, 16}},
+		"RAM":       {AllowedRAMGB, {1, 2, 4, 6, 8, 12, 16, 32}},
+		"storage":   {AllowedStorageGB, {5, 10, 20, 30, 40, 60, 80, 100}},
+		"bandwidth": {AllowedBandwidth, {20, 40, 60, 80, 100}},
+		"months":    {AllowedMonths, {1, 3, 6, 12}},
+	} {
+		got, want := pair[0], pair[1]
+		if len(got) != len(want) {
+			t.Errorf("%s: %v does not match the backend's %v", name, got, want)
+			continue
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("%s: %v does not match the backend's %v", name, got, want)
+				break
+			}
 		}
 	}
 }

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -19,6 +20,52 @@ const (
 // ramMB: RAM in megabytes
 // storageGB: storage in gigabytes
 // bandwidthMbps: bandwidth in Mbps
+// The configurations the platform actually sells. These mirror
+// api.dalang.io/handlers/vps_order.go:allowed* exactly, and the dashboard's
+// dropdowns offer the same values. Anything outside them is rejected at order
+// time by isAllowedVPSSpec — which calls triggerPricingFraud, so an innocent
+// customer asking for 3 vCPU gets logged as a fraud attempt rather than a
+// helpful error. Quote and reject locally instead.
+var (
+	AllowedVCPU      = []int{1, 2, 4, 6, 8, 16}
+	AllowedRAMGB     = []int{1, 2, 4, 6, 8, 12, 16, 32}
+	AllowedStorageGB = []int{5, 10, 20, 30, 40, 60, 80, 100}
+	AllowedBandwidth = []int{20, 40, 60, 80, 100}
+	AllowedMonths    = []int{1, 3, 6, 12}
+)
+
+func allowedContains(list []int, v int) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+func joinInts(list []int) string {
+	parts := make([]string, len(list))
+	for i, v := range list {
+		parts[i] = strconv.Itoa(v)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// ValidateVPSSpec reports why a configuration cannot be ordered, or nil.
+func ValidateVPSSpec(vcpu, ramGB, storageGB, bandwidthMbps int) error {
+	switch {
+	case !allowedContains(AllowedVCPU, vcpu):
+		return fmt.Errorf("%d vCPU is not offered — choose one of: %s", vcpu, joinInts(AllowedVCPU))
+	case !allowedContains(AllowedRAMGB, ramGB):
+		return fmt.Errorf("%d GB RAM is not offered — choose one of: %s", ramGB, joinInts(AllowedRAMGB))
+	case !allowedContains(AllowedStorageGB, storageGB):
+		return fmt.Errorf("%d GB storage is not offered — choose one of: %s", storageGB, joinInts(AllowedStorageGB))
+	case !allowedContains(AllowedBandwidth, bandwidthMbps):
+		return fmt.Errorf("%d Mbps is not offered — choose one of: %s", bandwidthMbps, joinInts(AllowedBandwidth))
+	}
+	return nil
+}
+
 // bandwidthBlocks returns the number of chargeable 20 Mbps blocks above the
 // free allowance. The backend TRUNCATES (`(bandwidth-20)/20` in both
 // calculateVPSPrice and vpsConfigNetPrice), so this must too: rounding up made
@@ -138,6 +185,15 @@ func calculateCustomPrice(args []string) error {
 	fmt.Println(strings.Repeat("─", 45))
 	fmt.Printf("  %-20s %10s %s%12s%s\n", "Total/month", "", colorGreen+colorBold, formatIDR(int64(price)), colorReset)
 	fmt.Println()
+
+	// `dalang price` is a calculator, so it still answers for any numbers — but
+	// it must say when the answer is not purchasable. The dashboard simply does
+	// not offer these values; ordering them here would be refused by the API and
+	// logged as a pricing-fraud attempt.
+	if err := ValidateVPSSpec(cpu, ramGB, storage, bandwidth); err != nil {
+		fmt.Println()
+		printWarn("Not orderable: %v", err)
+	}
 
 	return nil
 }

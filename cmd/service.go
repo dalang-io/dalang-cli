@@ -415,6 +415,18 @@ func serviceCreate(args []string) error {
 		region = "ID-BANTEN-02"
 	}
 
+	// Refuse a configuration the platform does not sell, rather than letting the
+	// API reject it — isAllowedVPSSpec answers with triggerPricingFraud, so an
+	// innocent "--cpu 3" is recorded as a fraud attempt. The dashboard has the
+	// same values as dropdowns; this is the CLI's equivalent.
+	ramGB := ram / 1024
+	if ram%1024 > 0 {
+		ramGB++
+	}
+	if err := ValidateVPSSpec(cpu, ramGB, storage, bandwidth); err != nil {
+		return err
+	}
+
 	// Calculate price
 	price := CalculateVPSPrice(cpu, ram, storage, bandwidth)
 
@@ -589,6 +601,10 @@ func serviceUpgrade(name string, args []string) error {
 	fmt.Printf("  %sDifference:    +%s/month%s\n", colorGreen, formatIDR(int64(priceDiff)), colorReset)
 	fmt.Println()
 
+	if err := ValidateVPSSpec(cpu, ram, storage, bandwidth); err != nil {
+		return err
+	}
+
 	if !yesFlag {
 		if !confirmPrompt("Proceed with upgrade?") {
 			printInfo("Cancelled")
@@ -713,6 +729,11 @@ func serviceExtend(name string, args []string) error {
 	fmt.Println(strings.Repeat("─", 50))
 	fmt.Printf("  %sTotal: %s%s\n", colorBold, formatIDR(int64(totalPrice)), colorReset)
 	fmt.Println()
+
+	// The backend only bills 1, 3, 6 or 12 months; anything else is rejected.
+	if !allowedContains(AllowedMonths, months) {
+		return fmt.Errorf("%d months is not offered — choose one of: %s", months, joinInts(AllowedMonths))
+	}
 
 	if !yesFlag {
 		if !confirmPrompt("Proceed with extension?") {

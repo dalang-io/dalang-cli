@@ -126,6 +126,28 @@ dalang price
 dalang price --cpu 2 --ram 2G --storage 20G --bandwidth 40
 ```
 
+### Orderable Configurations
+
+The platform sells a fixed set of values — the same ones the dashboard offers as
+dropdowns. The CLI refuses anything else before ordering, because the API answers
+an out-of-range spec by recording a **pricing-fraud attempt** against the account
+rather than returning a helpful error.
+
+| Option | Allowed values |
+|---|---|
+| `--cpu` | 1, 2, 4, 6, 8, 16 |
+| `--ram` | 1G, 2G, 4G, 6G, 8G, 12G, 16G, 32G |
+| `--storage` | 5G, 10G, 20G, 30G, 40G, 60G, 80G, 100G |
+| `--bandwidth` | 20, 40, 60, 80, 100 |
+| `--months` (extend) | 1, 3, 6, 12 |
+
+`dalang price` still calculates any combination you ask for — it is a
+calculator — but prints "Not orderable" under the total when the configuration
+cannot actually be bought.
+
+Bandwidth above the free 20 Mbps is charged per **whole** 20 Mbps block; a
+partial block is free. 30 Mbps costs the same as 20.
+
 ### Create New VPS
 ```bash
 # Basic VM — no --image means Ubuntu 26.04, the newest
