@@ -351,6 +351,7 @@ func TestTunnelFatalMessage(t *testing.T) {
 		{name: "unsupported version", fatal: &tunnel.FatalError{Code: tunnel.CodeUnsupportedVersion}, want: "dalang update"},
 		{name: "expired", fatal: &tunnel.FatalError{Code: tunnel.ReasonExpired}, want: "expired"},
 		{name: "unknown code", fatal: &tunnel.FatalError{Code: "weird", Message: "hm"}, want: "weird"},
+		{name: "empty code still errors", fatal: &tunnel.FatalError{}, want: "unrecognised"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -572,9 +573,17 @@ func TestTunnelFatalMessageReclaimCodes(t *testing.T) {
 			want:  []string{"no free addresses"},
 		},
 		{
-			name:  "unauthorized points at auth",
-			fatal: &tunnel.FatalError{Code: tunnel.CodeUnauthorized},
-			want:  []string{"dalang auth"},
+			name:  "handshake rejected names the layer that refused",
+			fatal: &tunnel.FatalError{Code: tunnel.CodeHandshakeRejected, Message: "status 403 from wss://tunnel.try.dalang.io/_tunnel/connect"},
+			want:  []string{"handshake", "403"},
+		},
+		{
+			// Codes leave the protocol (`evicted`, `unauthorized` both did);
+			// a CLI that meets one it does not know must still stop, and say
+			// something a user can act on.
+			name:  "unrecognised code fails safe",
+			fatal: &tunnel.FatalError{Code: "evicted", Message: "gone"},
+			want:  []string{"unrecognised code", "evicted", "dalang update"},
 		},
 	}
 
@@ -725,5 +734,52 @@ func TestTunnelUnreachableMessage(t *testing.T) {
 		if !strings.Contains(err.Error(), needle) {
 			t.Fatalf("message %q is missing %q", err, needle)
 		}
+	}
+}
+
+// TestTunnelReporterNoticeWithoutRequestID: the field is optional and often
+// absent, so the line must not quote an id the user never saw.
+func TestTunnelReporterNoticeWithoutRequestID(t *testing.T) {
+	resetGlobalFlags()
+	t.Cleanup(resetGlobalFlags)
+	noColorFlag = true
+	applyColorSettings()
+
+	r := &tunnelReporter{localURL: "http://localhost:8000"}
+	out := captureStdout(t, func() {
+		r.notice(tunnel.Notice{
+			Type:    tunnel.TypeNotice,
+			Code:    tunnel.NoticeRequestTooLarge,
+			Message: "POST /upload was over the 10 MB limit",
+		})
+	})
+
+	if !strings.Contains(out, "POST /upload") {
+		t.Fatalf("notice should print the method and path the daemon put in the message, got:\n%s", out)
+	}
+	if strings.Contains(out, "request )") || strings.Contains(out, "request ,") {
+		t.Fatalf("notice printed an empty request id:\n%s", out)
+	}
+	if !strings.Contains(out, "request_too_large") {
+		t.Fatalf("notice should still name the code, got:\n%s", out)
+	}
+}
+
+func TestTunnelReporterNoticeJSONOmitsAbsentRequestID(t *testing.T) {
+	resetGlobalFlags()
+	t.Cleanup(resetGlobalFlags)
+	jsonOutput = true
+
+	r := &tunnelReporter{localURL: "http://localhost:8000"}
+	out := captureStdout(t, func() {
+		r.notice(tunnel.Notice{Type: tunnel.TypeNotice, Code: tunnel.NoticeRequestTooLarge, Message: "POST /upload was too big"})
+	})
+
+	var entry map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &entry); err != nil {
+		t.Fatalf("notice line is not JSON: %v (%s)", err, out)
+	}
+	if _, ok := entry["request_id"]; ok {
+		t.Fatalf("request_id should be omitted when absent, got %v", entry)
 	}
 }

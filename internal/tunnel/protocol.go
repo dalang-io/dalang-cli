@@ -28,6 +28,11 @@ const (
 )
 
 // Error codes the daemon may send in an `error` frame.
+//
+// `unauthorized` was removed from the protocol once both implementations found
+// nothing that could produce it: every refusal keys on label *state*, and v1
+// does not validate bearer tokens at all. An unrecognised code must still fail
+// safe rather than be treated as success.
 const (
 	CodeLabelTaken         = "label_taken"
 	CodeLabelExpired       = "label_expired"
@@ -35,8 +40,14 @@ const (
 	CodeRateLimited        = "rate_limited"
 	CodeBadRequest         = "bad_request"
 	CodeUnsupportedVersion = "unsupported_version"
-	CodeUnauthorized       = "unauthorized"
 )
+
+// CodeHandshakeRejected is **not** a protocol code. It is synthesised when the
+// WebSocket handshake itself is refused with 401/403 — something in front of the
+// daemon (Cloudflare Access, a corporate proxy) rather than the daemon, which
+// cannot answer with a frame at that point. Retrying will not help, so it is
+// fatal.
+const CodeHandshakeRejected = "handshake_rejected"
 
 // Notice codes the daemon may send in an advisory `notice` frame.
 const (
@@ -46,10 +57,13 @@ const (
 )
 
 // Shutdown reasons the daemon may send in a `shutdown` frame.
+//
+// `evicted` was removed: it described a session displaced by a reconnect, which
+// the label lifecycle makes impossible — an `active` label is refused even to
+// the correct token, so nothing can take a live session's place.
 const (
 	ReasonExpired       = "expired"
 	ReasonServerRestart = "server_restart"
-	ReasonEvicted       = "evicted"
 )
 
 // envelope peeks at the `type` field so the frame can be decoded into the
@@ -103,6 +117,13 @@ type ErrorFrame struct {
 
 // Request is one inbound HTTP request the daemon received on the public URL.
 // Path already carries the query string, and Headers preserves repeats.
+//
+// Header names must be compared case-insensitively. Pingora stores headers in an
+// http::HeaderMap, which lowercases every name on insert, so the browser's
+// casing is gone before the daemon sees it; the daemon re-emits canonical
+// Title-Case (`ETag` comes back as `Etag`). Headers here is a plain map decoded
+// by encoding/json, which — unlike http.Header — gets no canonicalisation from
+// Go, so an exact-match lookup on a guessed name can miss.
 type Request struct {
 	Type     string              `json:"type"`
 	ID       string              `json:"id"`
@@ -134,6 +155,10 @@ type PingFrame struct {
 // how the daemon reports things that concern one request (a body it refused)
 // rather than the tunnel as a whole, which `error` cannot express because the
 // server closes after sending one.
+//
+// RequestID is optional and often absent: `request_too_large` is decided while
+// the body is still being read, before the request has an id, and the message
+// carries the method and path instead.
 type Notice struct {
 	Type      string `json:"type"`
 	Code      string `json:"code"`

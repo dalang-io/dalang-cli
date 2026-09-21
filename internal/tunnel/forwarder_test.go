@@ -20,6 +20,10 @@ func mustForwarder(t *testing.T, base string) *Forwarder {
 	return f
 }
 
+func base64String(s string) string {
+	return base64.StdEncoding.EncodeToString([]byte(s))
+}
+
 func decodeBody(t *testing.T, res Result) string {
 	t.Helper()
 	b, err := base64.StdEncoding.DecodeString(res.Response.BodyB64)
@@ -257,5 +261,120 @@ func TestForwarder504WhenLocalServerHangs(t *testing.T) {
 func TestDefaultLocalTimeoutMatchesTheProtocol(t *testing.T) {
 	if DefaultLocalTimeout != 60*time.Second {
 		t.Fatalf("DefaultLocalTimeout = %s, want 60s (pinned by PROTOCOL.md's timing table)", DefaultLocalTimeout)
+	}
+}
+
+// TestForwarderTreatsHeaderNamesCaseInsensitively is the interop case: Pingora
+// lowercases every header name on insert, so the casing that arrives is not the
+// browser's and an exact-match lookup on a guessed name would miss.
+func TestForwarderTreatsHeaderNamesCaseInsensitively(t *testing.T) {
+	var got *http.Request
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Clone(r.Context())
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer local.Close()
+
+	res := mustForwarder(t, local.URL).Do(context.Background(), Request{
+		ID:     "1",
+		Method: http.MethodPost,
+		Path:   "/",
+		Headers: map[string][]string{
+			"content-type":   {"application/json"},
+			"x-custom":       {"yes"},
+			"connection":     {"keep-alive"}, // hop-by-hop, lowercase
+			"host":           {"app.internal"},
+			"content-length": {"999"}, // disagrees with the real body
+		},
+		BodyB64: base64String("hello"),
+	})
+
+	if res.Err != nil {
+		t.Fatalf("unexpected error: %v", res.Err)
+	}
+	if v := got.Header.Get("Content-Type"); v != "application/json" {
+		t.Fatalf("Content-Type = %q — a lowercase name from the wire must still reach the local server", v)
+	}
+	if v := got.Header.Get("X-Custom"); v != "yes" {
+		t.Fatalf("X-Custom = %q", v)
+	}
+	if v := got.Header.Get("Connection"); v != "" {
+		t.Fatalf("lowercase hop-by-hop header was forwarded: %q", v)
+	}
+	if got.Host != "app.internal" {
+		t.Fatalf("Host = %q, want app.internal from the lowercase host header", got.Host)
+	}
+	if got.ContentLength != int64(len("hello")) {
+		t.Fatalf("ContentLength = %d, want %d — the forwarded claim must not win over the real body",
+			got.ContentLength, len("hello"))
+	}
+}
+
+// TestForwarderEmitsCanonicalResponseHeaders: the daemon compares
+// case-insensitively, but sending one consistent shape is what keeps that true.
+func TestForwarderEmitsCanonicalResponseHeaders(t *testing.T) {
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", `"abc"`)
+		w.Header().Set("x-lower", "1")
+		w.Header().Set("CONNECTION", "keep-alive")
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer local.Close()
+
+	res := mustForwarder(t, local.URL).Do(context.Background(), Request{ID: "1", Method: http.MethodGet, Path: "/"})
+
+	// Go canonicalises ETag to Etag, which is exactly what the daemon emits too.
+	if v := res.Response.Headers["Etag"]; len(v) != 1 || v[0] != `"abc"` {
+		t.Fatalf("Etag = %v, want the canonical key", res.Response.Headers)
+	}
+	if v := res.Response.Headers["X-Lower"]; len(v) != 1 || v[0] != "1" {
+		t.Fatalf("X-Lower = %v, want a canonicalised key", res.Response.Headers)
+	}
+	for name := range res.Response.Headers {
+		if headerName(name) != name {
+			t.Fatalf("response header %q is not canonical", name)
+		}
+		if hopByHop[name] {
+			t.Fatalf("hop-by-hop header %q leaked into the response", name)
+		}
+	}
+}
+
+func TestCanonicalizeHeaders(t *testing.T) {
+	if canonicalizeHeaders(nil) != nil {
+		t.Fatal("nil in, nil out")
+	}
+
+	got := canonicalizeHeaders(map[string][]string{
+		"content-type": {"text/plain"},
+		"Content-Type": {"text/html"},
+		"eTaG":         {`"x"`},
+	})
+
+	// Case variants merge instead of one silently winning.
+	if v := got["Content-Type"]; len(v) != 2 {
+		t.Fatalf("Content-Type = %v, want both values merged", v)
+	}
+	if v := got["Etag"]; len(v) != 1 || v[0] != `"x"` {
+		t.Fatalf("Etag = %v", v)
+	}
+	if _, ok := got["eTaG"]; ok {
+		t.Fatal("the original casing must not survive as its own key")
+	}
+}
+
+func TestHeaderName(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{in: "etag", want: "Etag"},
+		{in: "ETag", want: "Etag"},
+		{in: "ETAG", want: "Etag"},
+		{in: "content-type", want: "Content-Type"},
+		{in: "CONTENT-TYPE", want: "Content-Type"},
+		{in: "x-forwarded-host", want: "X-Forwarded-Host"},
+	}
+	for _, tt := range tests {
+		if got := headerName(tt.in); got != tt.want {
+			t.Fatalf("headerName(%q) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }

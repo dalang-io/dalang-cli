@@ -840,3 +840,102 @@ func TestReclaimTokenIsOverwrittenOnEveryAssigned(t *testing.T) {
 	cancel()
 	<-runErr
 }
+
+// TestHeaderCasingSurvivesTheWholeLoop drives the interop case end to end: a
+// `request` frame whose header names arrived lowercased (as Pingora hands them
+// to the daemon) must reach the local server intact, and the `response` frame
+// must go back in canonical Title-Case.
+func TestHeaderCasingSurvivesTheWholeLoop(t *testing.T) {
+	seen := make(chan http.Header, 1)
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.Header().Set("ETag", `"abc"`)
+		w.Header().Set("content-type", "text/plain")
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer local.Close()
+
+	ft := newFakeTunnel(t)
+	client, _ := newTestClient(t, ft, local.URL, Options{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runErr := make(chan error, 1)
+	go func() { runErr <- client.Run(ctx) }()
+
+	sc := ft.accept(t)
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Request{
+		Type:   TypeRequest,
+		ID:     "01JCASE",
+		Method: http.MethodGet,
+		Path:   "/",
+		Headers: map[string][]string{
+			"accept":     {"text/plain"},
+			"user-agent": {"curl/8"},
+		},
+	})
+
+	select {
+	case h := <-seen:
+		if h.Get("Accept") != "text/plain" || h.Get("User-Agent") != "curl/8" {
+			t.Fatalf("local server received %v, want the lowercase names normalised", h)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("the local server was never called")
+	}
+
+	var resp Response
+	sc.readFrameOfType(t, TypeResponse, &resp)
+	if v := resp.Headers["Content-Type"]; len(v) != 1 || v[0] != "text/plain" {
+		t.Fatalf("response headers = %v, want a canonical Content-Type key", resp.Headers)
+	}
+	if v := resp.Headers["Etag"]; len(v) != 1 || v[0] != `"abc"` {
+		t.Fatalf("response headers = %v, want Etag exactly as the daemon spells it", resp.Headers)
+	}
+
+	cancel()
+	<-runErr
+}
+
+// TestClientAcceptsNoticeWithoutRequestID: request_too_large is decided while
+// the body is still being read, before the request has an id, so the field is
+// absent and the message carries the method and path instead.
+func TestClientAcceptsNoticeWithoutRequestID(t *testing.T) {
+	local := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer local.Close()
+
+	ft := newFakeTunnel(t)
+	notices := make(chan Notice, 2)
+	client, _ := newTestClient(t, ft, local.URL, Options{
+		Events: Events{OnNotice: func(n Notice) { notices <- n }},
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runErr := make(chan error, 1)
+	go func() { runErr <- client.Run(ctx) }()
+
+	sc := ft.accept(t)
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	// Sent as raw JSON with no request_id field at all, not merely an empty one.
+	if err := sc.conn.WriteMessage(websocket.TextMessage, []byte(
+		`{"type":"notice","code":"request_too_large","message":"POST /upload was over the 10 MB limit"}`)); err != nil {
+		t.Fatalf("write notice: %v", err)
+	}
+
+	select {
+	case n := <-notices:
+		if n.RequestID != "" {
+			t.Fatalf("request_id = %q, want it absent", n.RequestID)
+		}
+		if !strings.Contains(n.Message, "/upload") {
+			t.Fatalf("message = %q, want the method and path", n.Message)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("a notice without request_id was not delivered")
+	}
+
+	cancel()
+	<-runErr
+}

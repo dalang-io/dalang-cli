@@ -371,9 +371,11 @@ func (c *Client) dial(ctx context.Context) (*websocket.Conn, error) {
 	if err != nil {
 		if resp != nil {
 			if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+				// Refused at the HTTP layer, so no `error` frame can arrive and
+				// no protocol code applies — retrying will not change it.
 				return nil, &FatalError{
-					Code:    "unauthorized",
-					Message: fmt.Sprintf("the tunnel server rejected the credentials (status %d)", resp.StatusCode),
+					Code:    CodeHandshakeRejected,
+					Message: fmt.Sprintf("status %d from %s", resp.StatusCode, c.opts.ServerURL),
 				}
 			}
 			return nil, fmt.Errorf("connecting to %s: %w (status %d)", c.opts.ServerURL, err, resp.StatusCode)

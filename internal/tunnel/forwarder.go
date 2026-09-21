@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,16 +21,42 @@ import (
 // daemon strips them before sending a `request`, but a tunnel that trusts the
 // other side to have sanitised its input is one bug away from forwarding an
 // `Upgrade:` and confusing the local server, so strip again here.
+//
+// Keyed in canonical form and always looked up through headerName: the casing
+// on the wire is not the browser's (Pingora lowercases, the daemon re-emits
+// Title-Case), so nothing here may compare names exactly.
 var hopByHop = map[string]bool{
-	"connection":          true,
-	"keep-alive":          true,
-	"transfer-encoding":   true,
-	"upgrade":             true,
-	"te":                  true,
-	"trailer":             true,
-	"proxy-connection":    true,
-	"proxy-authenticate":  true,
-	"proxy-authorization": true,
+	"Connection":          true,
+	"Keep-Alive":          true,
+	"Transfer-Encoding":   true,
+	"Upgrade":             true,
+	"Te":                  true,
+	"Trailer":             true,
+	"Proxy-Connection":    true,
+	"Proxy-Authenticate":  true,
+	"Proxy-Authorization": true,
+}
+
+// headerName canonicalises a header name from the wire ("etag" and "ETAG" both
+// become "Etag"). Every comparison and every map key in this file goes through
+// it, because a JSON-decoded map[string][]string gets none of the
+// canonicalisation http.Header would have applied.
+func headerName(name string) string {
+	return textproto.CanonicalMIMEHeaderKey(name)
+}
+
+// canonicalizeHeaders copies a wire header map into canonical Title-Case,
+// merging names that differ only in case rather than letting one win.
+func canonicalizeHeaders(in map[string][]string) map[string][]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string][]string, len(in))
+	for name, values := range in {
+		canonical := headerName(name)
+		out[canonical] = append(out[canonical], values...)
+	}
+	return out
 }
 
 // Forwarder replays tunnelled requests against the local server.
@@ -135,21 +162,22 @@ func (f *Forwarder) Do(ctx context.Context, req Request) Result {
 	// Default to the local server's own host so virtual-hosted apps answer;
 	// an explicit Host header from the daemon (which already rewrites it) wins.
 	httpReq.Host = f.host
-	for name, values := range req.Headers {
-		if hopByHop[strings.ToLower(name)] {
+	for name, values := range canonicalizeHeaders(req.Headers) {
+		if hopByHop[name] {
 			continue
 		}
-		if strings.EqualFold(name, "host") {
+		switch name {
+		case "Host":
 			if len(values) > 0 && values[0] != "" {
 				httpReq.Host = values[0]
 			}
-			continue
-		}
-		if strings.EqualFold(name, "content-length") {
-			continue // set by net/http from the buffered body
-		}
-		for _, v := range values {
-			httpReq.Header.Add(name, v)
+		case "Content-Length":
+			// Set by net/http from the buffered body; a forwarded one could
+			// disagree with the bytes we actually have.
+		default:
+			for _, v := range values {
+				httpReq.Header.Add(name, v)
+			}
 		}
 	}
 
@@ -177,17 +205,20 @@ func (f *Forwarder) Do(ctx context.Context, req Request) Result {
 		}
 	}
 
+	// Emitted in canonical Title-Case. The daemon compares case-insensitively
+	// too, but sending one shape consistently is what keeps that true.
 	headers := make(map[string][]string, len(resp.Header))
 	for name, values := range resp.Header {
-		if hopByHop[strings.ToLower(name)] {
+		canonical := headerName(name)
+		if hopByHop[canonical] {
 			continue
 		}
-		if strings.EqualFold(name, "content-length") {
+		if canonical == "Content-Length" {
 			// The body is buffered whole; trust the bytes, not the claim.
-			headers["Content-Length"] = []string{strconv.Itoa(len(respBody))}
+			headers[canonical] = []string{strconv.Itoa(len(respBody))}
 			continue
 		}
-		headers[name] = append([]string(nil), values...)
+		headers[canonical] = append(headers[canonical], values...)
 	}
 
 	return Result{

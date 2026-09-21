@@ -278,18 +278,20 @@ func tunnelFatalMessage(fatal *tunnel.FatalError, label string) error {
 		return fmt.Errorf("that address is not yours to reclaim — addresses are released 6 hours after a tunnel stops%s", detail)
 	case tunnel.CodePoolExhausted:
 		return fmt.Errorf("the tunnel server has no free addresses right now — try again in a moment%s", detail)
-	case tunnel.CodeUnauthorized:
-		return fmt.Errorf("the tunnel server rejected these credentials — run 'dalang auth' to log in again%s", detail)
+	case tunnel.CodeHandshakeRejected:
+		// Not a protocol refusal: something in front of the daemon turned the
+		// WebSocket upgrade away before a frame could be exchanged.
+		return fmt.Errorf("the WebSocket handshake was rejected before reaching the tunnel server%s", detail)
 	case tunnel.CodeRateLimited:
 		return fmt.Errorf("rate limited by the tunnel server — one tunnel per IP anonymously, three per account%s", detail)
 	case tunnel.CodeUnsupportedVersion:
 		return fmt.Errorf("this CLI speaks tunnel protocol v%d and the server does not — run 'dalang update'%s", tunnel.ProtocolVersion, detail)
 	case tunnel.ReasonExpired:
 		return fmt.Errorf("tunnel expired%s", detail)
-	case tunnel.ReasonEvicted:
-		return fmt.Errorf("tunnel evicted by the server%s", detail)
 	default:
-		return fmt.Errorf("tunnel refused (%s)%s", fatal.Code, detail)
+		// Fail safe on anything this CLI does not know: a code it cannot name
+		// is still a reason to stop, and is most likely a server newer than it.
+		return fmt.Errorf("the tunnel server ended the session with an unrecognised code %q%s — this CLI may be older than the server; try 'dalang update'", fatal.Code, detail)
 	}
 }
 
