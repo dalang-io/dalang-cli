@@ -94,6 +94,39 @@ func TestNormalizeLabel(t *testing.T) {
 
 // TestNormalizeLabelErrors pins the client-side half of the protocol's label
 // regex: anything rejected here must never cost a round trip to the daemon.
+func TestNormalizeLabelAcceptsBothDomains(t *testing.T) {
+	// The service moved from try.dalang.io to its own registrable domain. Links
+	// from before the move are still in chat messages and tickets, so pasting
+	// either one back as --subdomain has to work — nobody should have to know
+	// which era their link came from.
+	for _, in := range []string{
+		"kucing-makan-ikan",
+		"kucing-makan-ikan." + Domain,
+		"https://kucing-makan-ikan." + Domain,
+		"https://kucing-makan-ikan." + Domain + "/",
+		"kucing-makan-ikan." + LegacyDomains[0],
+		"https://kucing-makan-ikan." + LegacyDomains[0],
+		"KUCING-MAKAN-IKAN." + Domain,
+	} {
+		got, err := NormalizeLabel(in)
+		if err != nil {
+			t.Fatalf("NormalizeLabel(%q) errored: %v", in, err)
+		}
+		if got != "kucing-makan-ikan" {
+			t.Fatalf("NormalizeLabel(%q) = %q, want kucing-makan-ikan", in, got)
+		}
+	}
+}
+
+func TestDefaultServerURLTracksTheDomain(t *testing.T) {
+	// A domain spelled out in several places is a migration that half-happens.
+	// This fails if the control URL is ever hardcoded away from Domain again.
+	want := "wss://tunnel." + Domain + "/_tunnel/connect"
+	if DefaultServerURL != want {
+		t.Fatalf("DefaultServerURL = %q, want %q", DefaultServerURL, want)
+	}
+}
+
 func TestNormalizeLabelErrors(t *testing.T) {
 	tests := []struct {
 		name string

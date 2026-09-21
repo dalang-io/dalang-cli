@@ -358,7 +358,7 @@ func tunnelFatalMessage(fatal *tunnel.FatalError, label string) error {
 // tunnelAddress renders a label the way the user saw it, so an error about
 // "kucing-makan-ikan" names the URL they actually pasted somewhere.
 func tunnelAddress(label string) string {
-	return label + ".try.dalang.io"
+	return label + "." + tunnel.Domain
 }
 
 // tunnelReporter renders everything the tunnel wants to say. It is called from

@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	// DefaultServerURL is the control endpoint. tunnel.try.dalang.io serves
-	// nothing else (PROTOCOL.md §Reserved hosts).
-	DefaultServerURL = "wss://tunnel.try.dalang.io/_tunnel/connect"
+	// DefaultServerURL is the control endpoint. `tunnel.<Domain>` serves nothing
+	// else (PROTOCOL.md §Reserved hosts). Built from Domain so the move to a
+	// new registrable domain is one edit rather than a search.
+	DefaultServerURL = "wss://tunnel." + Domain + "/_tunnel/connect"
 
 	// DefaultPingInterval is fixed by the protocol: Cloudflare drops an idle
 	// proxied connection at ~100s, and 3 × 30s leaves headroom to notice.

@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -14,9 +15,41 @@ import (
 // round trip to be refused.
 var LabelPattern = regexp.MustCompile(`^[a-z]+-[a-z]+-[a-z]+$`)
 
-// tunnelDomainSuffix is accepted (and stripped) so pasting back a previously
-// issued URL works as a `--subdomain` value.
-const tunnelDomainSuffix = ".try.dalang.io"
+// Domain is where tunnels live. ONE constant, because the move from
+// try.dalang.io to trydalang.io has to be a single edit — a domain spelled out
+// in five places is a migration that half-happens.
+//
+// The service moved to its own registrable domain so abuse through a tunnel can
+// no longer get dalang.io itself flagged: Safe Browsing, mail filters and
+// corporate proxies act at the registrable-domain level, and try.dalang.io
+// shared one with the dashboard and the marketing site.
+const Domain = "try.dalang.io"
+
+// LegacyDomains are still accepted when parsing something a user pasted. They
+// are NOT where new addresses live. Someone reclaiming an address from a link
+// in a chat message should not have to know which era it came from.
+var LegacyDomains = []string{"trydalang.io"}
+
+// domainSuffixes is every suffix NormalizeLabel will strip, longest first so
+// that a domain which is a suffix of another cannot shadow it.
+func domainSuffixes() []string {
+	out := []string{"." + Domain}
+	for _, d := range LegacyDomains {
+		out = append(out, "."+d)
+	}
+	sort.Slice(out, func(i, j int) bool { return len(out[i]) > len(out[j]) })
+	return out
+}
+
+// trimTunnelDomain removes whichever tunnel domain the input carries, if any.
+func trimTunnelDomain(s string) string {
+	for _, suffix := range domainSuffixes() {
+		if t := strings.TrimSuffix(s, suffix); t != s {
+			return t
+		}
+	}
+	return s
+}
 
 var schemePrefix = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.\-]*://`)
 
@@ -114,11 +147,11 @@ func NormalizeLocalURL(in string) (string, error) {
 func NormalizeLabel(in string) (string, error) {
 	s := strings.ToLower(strings.TrimSpace(in))
 	s = strings.TrimSuffix(s, ".")
-	s = strings.TrimSuffix(s, tunnelDomainSuffix)
+	s = trimTunnelDomain(s)
 	// Tolerate a pasted full URL, e.g. https://kucing-makan-ikan.try.dalang.io
 	if i := strings.Index(s, "://"); i >= 0 {
 		s = s[i+3:]
-		s = strings.TrimSuffix(strings.TrimSuffix(s, "/"), tunnelDomainSuffix)
+		s = trimTunnelDomain(strings.TrimSuffix(s, "/"))
 	}
 	if s == "" {
 		return "", fmt.Errorf("--subdomain needs a value, e.g. --subdomain kucing-makan-ikan")
