@@ -75,7 +75,7 @@ func TestNormalizeLabel(t *testing.T) {
 		{name: "plain label", in: "kucing-makan-ikan", want: "kucing-makan-ikan"},
 		{name: "uppercase folded", in: "Kucing-Makan-Ikan", want: "kucing-makan-ikan"},
 		{name: "whitespace trimmed", in: "  kucing-makan-ikan ", want: "kucing-makan-ikan"},
-		{name: "domain suffix stripped", in: "kucing-makan-ikan.try.dalang.io", want: "kucing-makan-ikan"},
+		{name: "domain suffix stripped", in: "kucing-makan-ikan." + Domain, want: "kucing-makan-ikan"},
 		{name: "pasted url", in: "https://kucing-makan-ikan.try.dalang.io/", want: "kucing-makan-ikan"},
 	}
 

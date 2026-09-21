@@ -663,7 +663,7 @@ func printTunnelHelp() {
     dalang tunnel --url <local-address> [--subdomain <label>]
 
 %sDESCRIPTION:%s
-    Opens a tunnel to tunnel.try.dalang.io and prints a public HTTPS URL.
+    Opens a tunnel to tunnel.trydalang.io and prints a public HTTPS URL.
     Every request to that URL is forwarded to your local server and the
     response is sent back. Nothing is installed on your machine and no
     ports are opened in your firewall.

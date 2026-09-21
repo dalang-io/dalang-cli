@@ -194,7 +194,7 @@ func TestClientEndToEnd(t *testing.T) {
 	sc.send(t, Assigned{
 		Type:                 TypeAssigned,
 		Label:                "kucing-makan-ikan",
-		URL:                  "https://kucing-makan-ikan.try.dalang.io",
+		URL:                  "https://kucing-makan-ikan." + Domain,
 		ExpiresAt:            time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 		MaxBodyBytes:         10 << 20,
 		ReclaimToken:         "cmVjbGFpbS0x",
@@ -202,7 +202,7 @@ func TestClientEndToEnd(t *testing.T) {
 	})
 	select {
 	case a := <-assigned:
-		if a.URL != "https://kucing-makan-ikan.try.dalang.io" {
+		if a.URL != "https://kucing-makan-ikan."+Domain {
 			t.Fatalf("assigned url = %q", a.URL)
 		}
 		// A duration, not a deadline: the window runs from the close, which has
@@ -282,7 +282,7 @@ func TestClientAnswersWith502WhenLocalServerIsDown(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 	sc.send(t, Request{Type: TypeRequest, ID: "deadbeef", Method: http.MethodGet, Path: "/"})
 
 	var resp Response
@@ -315,7 +315,7 @@ func TestClientRepliesToServerPing(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 	sc.send(t, PingFrame{Type: TypePing, T: 1758441600})
 
 	var pong PingFrame
@@ -343,7 +343,7 @@ func TestClientSendsKeepalivePings(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 
 	var ping PingFrame
 	sc.readFrameOfType(t, TypePing, &ping)
@@ -381,7 +381,7 @@ func TestClientReconnectsWithSameLabelAfterMissedPongs(t *testing.T) {
 	}
 	first.send(t, Assigned{
 		Type: TypeAssigned, Label: "kucing-makan-ikan",
-		URL:          "https://kucing-makan-ikan.try.dalang.io",
+		URL:          "https://kucing-makan-ikan." + Domain,
 		ReclaimToken: "dG9rZW4tZnJvbS1hc3NpZ25lZA",
 	})
 	// Deliberately never pong.
@@ -428,7 +428,7 @@ func TestClientReconnectsOnServerRestart(t *testing.T) {
 	first := ft.accept(t)
 	first.send(t, Assigned{
 		Type: TypeAssigned, Label: "kucing-makan-ikan",
-		URL:          "https://kucing-makan-ikan.try.dalang.io",
+		URL:          "https://kucing-makan-ikan." + Domain,
 		ReclaimToken: "cmVzdGFydC10b2tlbg",
 	})
 	first.send(t, Shutdown{Type: TypeShutdown, Reason: ReasonServerRestart, Message: "back in a moment"})
@@ -502,7 +502,7 @@ func TestClientShutsDownCleanly(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 
 	closed := make(chan int, 1)
 	sc.conn.SetCloseHandler(func(code int, text string) error {
@@ -587,7 +587,7 @@ func TestClientHandlesNoticeWithoutEndingTheSession(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 	sc.send(t, Notice{
 		Type:      TypeNotice,
 		Code:      NoticeRequestTooLarge,
@@ -777,7 +777,7 @@ func TestAssignedSessionRetriesForever(t *testing.T) {
 	first := ft.accept(t)
 	first.send(t, Assigned{
 		Type: TypeAssigned, Label: "kucing-makan-ikan",
-		URL:                  "https://kucing-makan-ikan.try.dalang.io",
+		URL:                  "https://kucing-makan-ikan." + Domain,
 		ReclaimToken:         "dG9rZW4",
 		ReclaimWindowSeconds: 21600,
 	})
@@ -828,9 +828,9 @@ func TestReclaimTokenIsOverwrittenOnEveryAssigned(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io", ReclaimToken: "first"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain, ReclaimToken: "first"})
 	<-seen
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io", ReclaimToken: "second"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain, ReclaimToken: "second"})
 	<-seen
 
 	if got := client.ReclaimToken(); got != "second" {
@@ -864,7 +864,7 @@ func TestHeaderCasingSurvivesTheWholeLoop(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 	sc.send(t, Request{
 		Type:   TypeRequest,
 		ID:     "01JCASE",
@@ -917,7 +917,7 @@ func TestClientAcceptsNoticeWithoutRequestID(t *testing.T) {
 	go func() { runErr <- client.Run(ctx) }()
 
 	sc := ft.accept(t)
-	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	sc.send(t, Assigned{Type: TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + Domain})
 	// Sent as raw JSON with no request_id field at all, not merely an empty one.
 	if err := sc.conn.WriteMessage(websocket.TextMessage, []byte(
 		`{"type":"notice","code":"request_too_large","message":"POST /upload was over the 10 MB limit"}`)); err != nil {

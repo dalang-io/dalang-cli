@@ -202,13 +202,13 @@ func TestTunnelReporterPrintsURLProminently(t *testing.T) {
 		r.assigned(tunnel.Assigned{
 			Type:         tunnel.TypeAssigned,
 			Label:        "kucing-makan-ikan",
-			URL:          "https://kucing-makan-ikan.try.dalang.io",
+			URL:          "https://kucing-makan-ikan." + tunnel.Domain,
 			ExpiresAt:    time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339),
 			MaxBodyBytes: 10 << 20,
 		})
 	})
 
-	if !strings.Contains(out, "https://kucing-makan-ikan.try.dalang.io") {
+	if !strings.Contains(out, "https://kucing-makan-ikan."+tunnel.Domain) {
 		t.Fatalf("assigned output does not contain the public URL:\n%s", out)
 	}
 	if !strings.Contains(out, "http://localhost:8000") {
@@ -226,14 +226,14 @@ func TestTunnelReporterQuietPrintsOnlyTheURL(t *testing.T) {
 
 	r := &tunnelReporter{localURL: "http://localhost:8000"}
 	out := captureStdout(t, func() {
-		r.assigned(tunnel.Assigned{Type: tunnel.TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+		r.assigned(tunnel.Assigned{Type: tunnel.TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + tunnel.Domain})
 		r.request(
 			tunnel.Request{Method: "GET", Path: "/"},
 			tunnel.Result{Status: 200, Duration: 3 * time.Millisecond},
 		)
 	})
 
-	if out != "https://a-b-c.try.dalang.io\n" {
+	if out != "https://a-b-c."+tunnel.Domain+"\n" {
 		t.Fatalf("quiet output = %q, want just the URL line", out)
 	}
 }
@@ -297,7 +297,7 @@ func TestTunnelReporterJSONOutput(t *testing.T) {
 
 	r := &tunnelReporter{localURL: "http://localhost:8000"}
 	out := captureStdout(t, func() {
-		r.assigned(tunnel.Assigned{Type: tunnel.TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+		r.assigned(tunnel.Assigned{Type: tunnel.TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + tunnel.Domain})
 		r.request(
 			tunnel.Request{ID: "01J", Method: "GET", Path: "/"},
 			tunnel.Result{Status: 200, Duration: 5 * time.Millisecond},
@@ -312,7 +312,7 @@ func TestTunnelReporterJSONOutput(t *testing.T) {
 	if err := json.Unmarshal([]byte(lines[0]), &assigned); err != nil {
 		t.Fatalf("assigned line is not JSON: %v (%s)", err, lines[0])
 	}
-	if assigned["url"] != "https://a-b-c.try.dalang.io" || assigned["type"] != "assigned" {
+	if assigned["url"] != "https://a-b-c."+tunnel.Domain || assigned["type"] != "assigned" {
 		t.Fatalf("assigned JSON = %v", assigned)
 	}
 	var req map[string]any
@@ -398,7 +398,7 @@ func TestPersistReclaimRoundTrip(t *testing.T) {
 	persistReclaim(tunnel.Assigned{
 		Type:                 tunnel.TypeAssigned,
 		Label:                "kucing-makan-ikan",
-		URL:                  "https://kucing-makan-ikan.try.dalang.io",
+		URL:                  "https://kucing-makan-ikan." + tunnel.Domain,
 		ReclaimToken:         "dG9rZW4",
 		ReclaimWindowSeconds: 21600,
 	})
@@ -417,7 +417,7 @@ func TestPersistReclaimIgnoresAnAssignedWithoutAToken(t *testing.T) {
 	t.Cleanup(resetGlobalFlags)
 	setTunnelTestHome(t)
 
-	persistReclaim(tunnel.Assigned{Type: tunnel.TypeAssigned, Label: "a-b-c", URL: "https://a-b-c.try.dalang.io"})
+	persistReclaim(tunnel.Assigned{Type: tunnel.TypeAssigned, Label: "a-b-c", URL: "https://a-b-c." + tunnel.Domain})
 	if _, ok := config.GetTunnelReclaim("a-b-c"); ok {
 		t.Fatal("stored an empty reclaim token")
 	}
@@ -527,7 +527,7 @@ func TestPrintReclaimHintShowsTheExactCommand(t *testing.T) {
 		r.assigned(tunnel.Assigned{
 			Type:                 tunnel.TypeAssigned,
 			Label:                "kucing-makan-ikan",
-			URL:                  "https://kucing-makan-ikan.try.dalang.io",
+			URL:                  "https://kucing-makan-ikan." + tunnel.Domain,
 			ReclaimToken:         "tok",
 			ReclaimWindowSeconds: 21600,
 		})
@@ -612,7 +612,7 @@ func TestTunnelFatalMessageReclaimCodes(t *testing.T) {
 			name:  "label expired names the window",
 			fatal: &tunnel.FatalError{Code: tunnel.CodeLabelExpired},
 			label: "kucing-makan-ikan",
-			want:  []string{"kucing-makan-ikan.try.dalang.io", "not yours to reclaim", "6 hours"},
+			want:  []string{"kucing-makan-ikan." + tunnel.Domain, "not yours to reclaim", "6 hours"},
 		},
 		{
 			name:  "label taken explains the token",
@@ -695,7 +695,7 @@ func TestPersistReclaimDerivesTheDeadline(t *testing.T) {
 	persistReclaim(tunnel.Assigned{
 		Type:                 tunnel.TypeAssigned,
 		Label:                "kucing-makan-ikan",
-		URL:                  "https://kucing-makan-ikan.try.dalang.io",
+		URL:                  "https://kucing-makan-ikan." + tunnel.Domain,
 		ReclaimToken:         "dG9rZW4",
 		ReclaimWindowSeconds: 21600,
 	})
@@ -729,7 +729,7 @@ func TestPersistReclaimOverwritesTheOlderToken(t *testing.T) {
 	base := tunnel.Assigned{
 		Type:                 tunnel.TypeAssigned,
 		Label:                "kucing-makan-ikan",
-		URL:                  "https://kucing-makan-ikan.try.dalang.io",
+		URL:                  "https://kucing-makan-ikan." + tunnel.Domain,
 		ReclaimWindowSeconds: 21600,
 	}
 	base.ReclaimToken = "first"
@@ -759,7 +759,7 @@ func TestReclaimHintCallsTheDeadlineAnEstimate(t *testing.T) {
 		r.assigned(tunnel.Assigned{
 			Type:                 tunnel.TypeAssigned,
 			Label:                "kucing-makan-ikan",
-			URL:                  "https://kucing-makan-ikan.try.dalang.io",
+			URL:                  "https://kucing-makan-ikan." + tunnel.Domain,
 			ReclaimToken:         "tok",
 			ReclaimWindowSeconds: 21600,
 		})

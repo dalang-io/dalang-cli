@@ -77,10 +77,11 @@ it. If something in it is wrong, change the file first — two implementations
 reading one document is what keeps them able to talk, and it has already caught
 two interop bugs neither side could find alone.
 
-**The domain is moving** from `try.dalang.io` to `trydalang.io`, its own
-registrable domain, so abuse through a tunnel cannot get `dalang.io` flagged by
-Safe Browsing or mail filters — those act at the registrable-domain level.
-`../dalang-tunnel/MIGRATION.md` has the full plan. What matters here:
+**The domain moved** from `try.dalang.io` to `trydalang.io`, its own registrable
+domain, so abuse through a tunnel cannot get `dalang.io` flagged by Safe
+Browsing or mail filters — those act at the registrable-domain level. The daemon
+still serves the old domain for clients from before the flip;
+`../dalang-tunnel/MIGRATION.md` says when it is safe to stop. What matters here:
 
 - The domain lives in **one constant**, `tunnel.Domain` in
   `internal/tunnel/url.go`. `DefaultServerURL` and `tunnelAddress` derive from
@@ -88,8 +89,9 @@ Safe Browsing or mail filters — those act at the registrable-domain level.
   it. A domain in several places is a migration that half-happens.
 - `NormalizeLabel` accepts **both** domains. Links from before the move are in
   chat messages already; nobody should need to know which era theirs came from.
-- **Do not flip the constant until DNS resolves.** Shipping a CLI that dials a
-  host with no DNS breaks every install.
+- **The constant was flipped only after HTTPS answered on the new domain.**
+  Shipping a CLI that dials a host with no DNS — or no certificate — breaks
+  every install.
 
 Two rules this feature exists under, both learned the hard way:
 

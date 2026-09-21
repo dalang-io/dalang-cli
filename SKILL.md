@@ -289,7 +289,7 @@ the command and the local server answers them.
 
 ```bash
 dalang tunnel --url http://localhost:8000
-# → https://cicak-memasak-taman.try.dalang.io
+# → https://cicak-memasak-taman.trydalang.io
 ```
 
 `--url` is forgiving: `8000`, `:8000`, `localhost:8000` and a full URL all work.

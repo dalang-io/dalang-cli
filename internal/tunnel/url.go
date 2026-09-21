@@ -23,12 +23,16 @@ var LabelPattern = regexp.MustCompile(`^[a-z]+-[a-z]+-[a-z]+$`)
 // no longer get dalang.io itself flagged: Safe Browsing, mail filters and
 // corporate proxies act at the registrable-domain level, and try.dalang.io
 // shared one with the dashboard and the marketing site.
-const Domain = "try.dalang.io"
+const Domain = "trydalang.io"
 
 // LegacyDomains are still accepted when parsing something a user pasted. They
 // are NOT where new addresses live. Someone reclaiming an address from a link
 // in a chat message should not have to know which era it came from.
-var LegacyDomains = []string{"trydalang.io"}
+//
+// The daemon still serves try.dalang.io — its control endpoint, and any label
+// on it — so a CLI from before this flip keeps working. Do not remove this
+// until that is no longer true; see MIGRATION.md §6 in the dalang-tunnel repo.
+var LegacyDomains = []string{"try.dalang.io"}
 
 // domainSuffixes is every suffix NormalizeLabel will strip, longest first so
 // that a domain which is a suffix of another cannot shadow it.
@@ -148,7 +152,7 @@ func NormalizeLabel(in string) (string, error) {
 	s := strings.ToLower(strings.TrimSpace(in))
 	s = strings.TrimSuffix(s, ".")
 	s = trimTunnelDomain(s)
-	// Tolerate a pasted full URL, e.g. https://kucing-makan-ikan.try.dalang.io
+	// Tolerate a pasted full URL, e.g. https://kucing-makan-ikan.trydalang.io
 	if i := strings.Index(s, "://"); i >= 0 {
 		s = s[i+3:]
 		s = trimTunnelDomain(strings.TrimSuffix(s, "/"))
