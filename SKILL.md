@@ -2,7 +2,7 @@
 
 This document helps AI assistants understand and use the Dalang CLI tool effectively.
 
-_Verified against the CLI source and the api.dalang.io image map on 2026-09-20 (CLI **v1.18.x**)._
+_Verified against the CLI source and the api.dalang.io image map on 2026-09-21 (CLI **v1.19.x**)._
 
 ## Overview
 
@@ -281,6 +281,40 @@ dalang download <vps-name> /var/log/app.log ./app.log   # alias: pull
 - A progress bar is shown during transfer
 - The VPS must be running
 
+## Tunnels (`dalang tunnel`)
+
+Exposes a server already running on the local machine at a public HTTPS address.
+Nothing is built, uploaded or deployed — requests arrive at the machine running
+the command and the local server answers them.
+
+```bash
+dalang tunnel --url http://localhost:8000
+# → https://cicak-memasak-taman.try.dalang.io
+```
+
+`--url` is forgiving: `8000`, `:8000`, `localhost:8000` and a full URL all work.
+
+**Addresses.** Three Indonesian words, `<subjek>-<predikat>-<objek>`. **Every run
+gets a new one and you cannot choose it.** When a tunnel stops, its address is
+held for **6 hours** for the machine that had it, and `--subdomain <label>` takes
+it back within that window. After 6 hours it returns to the pool for anyone.
+Reclaiming needs a token stored in `~/.dalang/tunnels.json`, so an address cannot
+be taken by someone who merely knows its name — and cannot be reclaimed from a
+different machine.
+
+**Limits, and they are real.** 10 MB per request and per response; no streaming,
+SSE or chunked responses; no WebSocket *through* the tunnel; 2 hours anonymous
+and 8 hours signed in; 1 concurrent tunnel anonymous, 3 signed in. A streaming
+endpoint does not fail fast — it times out after 60s with a body explaining why,
+because bodies are buffered whole.
+
+**What it is for:** showing someone work in progress, testing a webhook against
+a real provider, demoing from a laptop. **What it is not:** hosting. A tunnel
+lives only as long as the command is running.
+
+If the local server is down, the caller gets a 502 naming the URL that failed
+and the terminal says so too — the tunnel is fine, the app is not.
+
 ## Custom Domains
 ```bash
 # Enable custom domain addon (paid feature)
@@ -347,6 +381,8 @@ dropped — so a type added on the server side degrades quietly here.
 | `dalang domain add <vps> <domain>` | Add custom domain |
 | `dalang domain verify <domain>` | Verify DNS setup |
 | `dalang domain remove <domain>` | Remove custom domain |
+| `dalang tunnel --url <addr>` | Expose a local server at a public HTTPS URL |
+| `dalang tunnel --url <addr> --subdomain <label>` | Reclaim an address this machine held |
 | `dalang scp <src> <dst>` | Copy files to/from a VM (scp-style) |
 | `dalang upload <vps> <local> <remote>` | Upload a single file (legacy) |
 | `dalang download <vps> <remote> [local]` | Download a single file (legacy) |
