@@ -33,6 +33,20 @@ const (
 	// the CLI answers that id with a 504 rather than leaving it unanswered.
 	DefaultLocalTimeout = 60 * time.Second
 
+	// BlipWindow is how long a broken connection is still treated as a hiccup
+	// rather than an outage.
+	//
+	// It matches the daemon's RECONNECT_GRACE_SECS on purpose: for exactly this
+	// long the server keeps the address held and answers visitors with a
+	// retryable 503 saying the tunnel is reconnecting. Past it, the server
+	// starts telling visitors the tunnel is gone — so this is the moment the
+	// CLI should stop implying everything is fine, because it no longer is.
+	//
+	// The CLI keeps retrying afterwards. Surviving a long outage is still the
+	// point; what changes is that it says so instead of printing another
+	// cheerful "reconnecting in 30s" into the void.
+	BlipWindow = 5 * time.Minute
+
 	// MaxInitialAttempts bounds a first connection that has never succeeded.
 	// Once a session has reached `assigned` the client retries forever instead
 	// — surviving a daemon restart under a running tunnel is the point — but
@@ -58,6 +72,12 @@ type Events struct {
 	OnNotice    func(Notice)
 	OnRequest   func(Request, Result)
 	OnReconnect func(attempt int, delay time.Duration, cause error)
+	// OnDown fires once, when a disconnection stops being a blip: the server is
+	// no longer holding the address open for visitors. Retrying continues.
+	OnDown func(down time.Duration, cause error)
+	// OnRecovered fires if a tunnel that had gone down comes back, so the user
+	// does not have to infer it from the absence of further complaints.
+	OnRecovered func(down time.Duration)
 	OnConnected func(attempt int)
 	OnShutdown  func(Shutdown)
 	OnDebug     func(format string, args ...any)
@@ -114,6 +134,8 @@ func (e *UnreachableError) Unwrap() error { return e.Err }
 // forwarder behind it. It reconnects on its own and keeps its label so the
 // public URL the user already pasted somewhere keeps working.
 type Client struct {
+	// clock is an unexported seam; see now().
+	clock func() time.Time
 	opts  Options
 	fwd   *Forwarder
 	label string // sticky across reconnects
@@ -155,6 +177,9 @@ func New(opts Options) (*Client, error) {
 func (c *Client) Run(ctx context.Context) error {
 	attempt := 0 // consecutive failures
 	everAssigned := false
+	// When the current run of failures started. Zero while connected.
+	var downSince time.Time
+	warnedDown := false
 
 	for {
 		assigned, err := c.session(ctx, attempt+1)
@@ -166,6 +191,11 @@ func (c *Client) Run(ctx context.Context) error {
 			// The session worked for a while; start the backoff ladder over
 			// rather than punishing a long-lived tunnel for one drop.
 			attempt = 0
+			if !downSince.IsZero() && warnedDown {
+				c.emitRecovered(c.now().Sub(downSince))
+			}
+			downSince = time.Time{}
+			warnedDown = false
 		}
 
 		var fatal *FatalError
@@ -176,6 +206,16 @@ func (c *Client) Run(ctx context.Context) error {
 		attempt++
 		if !everAssigned && attempt >= MaxInitialAttempts {
 			return &UnreachableError{ServerURL: c.opts.ServerURL, Attempts: attempt, Err: err}
+		}
+
+		if downSince.IsZero() {
+			downSince = c.now()
+		}
+		// Once past the window the server has stopped holding this address open
+		// for visitors, so a line that still reads like a hiccup would be a lie.
+		if !warnedDown && everAssigned && c.now().Sub(downSince) >= BlipWindow {
+			warnedDown = true
+			c.emitDown(c.now().Sub(downSince), err)
 		}
 
 		delay := c.backoffFor(attempt)
@@ -508,6 +548,27 @@ func (c *Client) emitNotice(n Notice) {
 func (c *Client) emitRequest(req Request, res Result) {
 	if c.opts.Events.OnRequest != nil {
 		c.opts.Events.OnRequest(req, res)
+	}
+}
+
+// now is a seam. Tests drive the blip window without waiting five real minutes;
+// production always gets the wall clock.
+func (c *Client) now() time.Time {
+	if c.clock != nil {
+		return c.clock()
+	}
+	return time.Now()
+}
+
+func (c *Client) emitDown(down time.Duration, cause error) {
+	if c.opts.Events.OnDown != nil {
+		c.opts.Events.OnDown(down, cause)
+	}
+}
+
+func (c *Client) emitRecovered(down time.Duration) {
+	if c.opts.Events.OnRecovered != nil {
+		c.opts.Events.OnRecovered(down)
 	}
 }
 

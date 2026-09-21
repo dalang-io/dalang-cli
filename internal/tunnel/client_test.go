@@ -939,3 +939,81 @@ func TestClientAcceptsNoticeWithoutRequestID(t *testing.T) {
 	cancel()
 	<-runErr
 }
+
+// A blip must be invisible; an outage must be admitted. The daemon holds the
+// address open and answers visitors with a retryable 503 for BlipWindow, then
+// starts telling them the tunnel is gone — so that is exactly when the CLI must
+// stop printing cheerful "reconnecting" lines and say what is true.
+func TestBlipIsQuietButAnOutageIsAnnounced(t *testing.T) {
+	var downCalls, recoveredCalls int
+	var reportedDown time.Duration
+
+	// A server that assigns once, then refuses every later connection, so the
+	// client is stuck reconnecting.
+	var conns int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conns++
+		if conns > 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		c, err := (&websocket.Upgrader{}).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		_, _, _ = c.ReadMessage() // hello
+		_ = c.WriteJSON(map[string]any{
+			"type": "assigned", "label": "a-b-c",
+			"url": "https://a-b-c." + Domain, "expires_at": "2030-01-01T00:00:00Z",
+			"reclaim_token": "tok", "reclaim_window_seconds": 21600,
+		})
+		c.Close() // drop it: the blip begins
+	}))
+	defer srv.Close()
+
+	// A clock the test advances, so the five-minute window costs no real time.
+	fake := time.Unix(1700000000, 0)
+	c, err := New(Options{
+		ServerURL: "ws" + strings.TrimPrefix(srv.URL, "http") + "/_tunnel/connect",
+		LocalURL:  "http://127.0.0.1:1",
+		backoff:   func(int) time.Duration { return time.Millisecond },
+		Events: Events{
+			OnReconnect: func(int, time.Duration, error) {
+				// Each retry moves the clock on by two minutes: the first two
+				// are still inside the window, the third is past it.
+				fake = fake.Add(2 * time.Minute)
+			},
+			OnDown: func(d time.Duration, _ error) {
+				downCalls++
+				reportedDown = d
+			},
+			OnRecovered: func(time.Duration) { recoveredCalls++ },
+		},
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	c.clock = func() time.Time { return fake }
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = c.Run(ctx)
+
+	if downCalls != 1 {
+		t.Fatalf("OnDown fired %d times, want exactly 1 — a blip should be silent and an outage announced once", downCalls)
+	}
+	if reportedDown < BlipWindow {
+		t.Fatalf("OnDown reported %s down, which is inside the %s blip window", reportedDown, BlipWindow)
+	}
+	if recoveredCalls != 0 {
+		t.Fatalf("OnRecovered fired %d times without a recovery", recoveredCalls)
+	}
+}
+
+// The CLI and the daemon must agree about how long a blip lasts, or one will be
+// holding the address open while the other has given up explaining why.
+func TestBlipWindowMatchesTheDaemonGrace(t *testing.T) {
+	if BlipWindow != 5*time.Minute {
+		t.Fatalf("BlipWindow is %s; the daemon's RECONNECT_GRACE_SECS default is 300s", BlipWindow)
+	}
+}

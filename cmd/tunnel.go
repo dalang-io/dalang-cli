@@ -159,6 +159,8 @@ func cmdTunnel(args []string) error {
 				OnNotice:    reporter.notice,
 				OnRequest:   reporter.request,
 				OnReconnect: reporter.reconnect,
+				OnDown:      reporter.down,
+				OnRecovered: reporter.recovered,
 				OnShutdown:  reporter.shutdown,
 				OnDebug:     PrintDebug,
 			},
@@ -547,6 +549,48 @@ func (r *tunnelReporter) printReclaimHint() {
 	fmt.Println()
 	fmt.Printf("  %s is held for you %s. To take it back:\n", tunnelAddress(r.label), window)
 	fmt.Printf("      %sdalang tunnel --url %s --subdomain %s%s\n\n", colorCyan, r.localURL, r.label, colorReset)
+}
+
+// down says the outage has outlived the server's grace window, so the address
+// is no longer being held open for visitors. Retrying continues — what changes
+// is that the CLI stops implying everything is fine.
+// errString renders a cause for JSON output without turning a nil into "<nil>".
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func (r *tunnelReporter) down(down time.Duration, cause error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if jsonOutput {
+		r.emitJSON(map[string]any{
+			"event":        "down",
+			"down_seconds": int(down.Seconds()),
+			"cause":        errString(cause),
+		})
+		return
+	}
+	if quietOutput {
+		return
+	}
+	printWarn("Still disconnected after %s — visitors now see this address as gone.", formatTunnelDuration(down))
+	printWarn("Still trying. Ctrl+C to stop.")
+}
+
+func (r *tunnelReporter) recovered(down time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if jsonOutput {
+		r.emitJSON(map[string]any{"event": "recovered", "down_seconds": int(down.Seconds())})
+		return
+	}
+	if quietOutput {
+		return
+	}
+	printSuccess("Reconnected after %s — the address is live again.", formatTunnelDuration(down))
 }
 
 func (r *tunnelReporter) reconnect(attempt int, delay time.Duration, cause error) {
