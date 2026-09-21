@@ -288,6 +288,15 @@ func tunnelFatalMessage(fatal *tunnel.FatalError, label string) error {
 		return fmt.Errorf("this CLI speaks tunnel protocol v%d and the server does not — run 'dalang update'%s", tunnel.ProtocolVersion, detail)
 	case tunnel.ReasonExpired:
 		return fmt.Errorf("tunnel expired%s", detail)
+	case tunnel.CodeBadRequest:
+		// A protocol code, not an unknown one. The daemon uses it for a token
+		// api.dalang.io refused, and its message already says what to do, so
+		// this arm exists to stop the default arm telling the user their CLI is
+		// out of date when it is their token that is.
+		if fatal.Message != "" {
+			return fmt.Errorf("%s", fatal.Message)
+		}
+		return fmt.Errorf("the tunnel server rejected the request")
 	default:
 		// Fail safe on anything this CLI does not know: a code it cannot name
 		// is still a reason to stop, and is most likely a server newer than it.

@@ -548,6 +548,26 @@ func TestPrintReclaimHintSilentWithoutALabel(t *testing.T) {
 	}
 }
 
+func TestTunnelFatalMessageBadRequestIsNotTreatedAsUnknown(t *testing.T) {
+	// bad_request is in the protocol, and the daemon uses it for a token
+	// api.dalang.io refused. Falling through to the default arm told the user
+	// "this CLI may be older than the server; try 'dalang update'" when the
+	// thing that was out of date was their token — advice that sends them to
+	// fix the wrong thing.
+	err := tunnelFatalMessage(&tunnel.FatalError{
+		Code:    tunnel.CodeBadRequest,
+		Message: "that token was refused by api.dalang.io — run 'dalang auth' to sign in again",
+	}, "")
+	got := err.Error()
+
+	if strings.Contains(got, "unrecognised") || strings.Contains(got, "dalang update") {
+		t.Fatalf("bad_request was handled by the default arm: %s", got)
+	}
+	if !strings.Contains(got, "dalang auth") {
+		t.Fatalf("the server's advice was dropped: %s", got)
+	}
+}
+
 func TestTunnelFatalMessageReclaimCodes(t *testing.T) {
 	tests := []struct {
 		name  string
