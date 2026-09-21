@@ -71,7 +71,7 @@ func printUsage(format string, args ...interface{}) {
 var knownCommands = []string{
 	"auth", "credit", "service", "shell", "exec", "console",
 	"start", "stop", "delete", "domain", "price", "update",
-	"scp", "version", "help",
+	"scp", "tunnel", "version", "help",
 }
 
 // suggestCommand returns the closest known command to the given input, or "" if
@@ -230,6 +230,8 @@ func Execute() error {
 		return cmdDownload(cmdArgs)
 	case "scp", "cp":
 		return cmdScp(cmdArgs)
+	case "tunnel":
+		return cmdTunnel(cmdArgs)
 	default:
 		if s := suggestCommand(command); s != "" {
 			return fmt.Errorf("unknown command %q. Did you mean %q? (run 'dalang help')", command, s)
@@ -300,6 +302,9 @@ func printHelp() {
 	fmt.Printf("  %sFile Transfer%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "scp [-r] <src>... <dst>" + colorReset + "    Copy files to/from a VM (scp-style host:path, multi-source, -r recursive)")
 	fmt.Println()
+	fmt.Printf("  %sTunnels%s\n", colorBold, colorReset)
+	fmt.Println("    " + colorCyan + "tunnel --url <addr>" + colorReset + "        Expose a local HTTP server on a public URL")
+	fmt.Println()
 	fmt.Printf("  %sPricing%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "price" + colorReset + "                      Show VPS pricing table")
 	fmt.Println("    " + colorCyan + "price --cpu N --ram NG" + colorReset + "    Calculate price for specific config")
@@ -342,6 +347,9 @@ func printHelp() {
 	fmt.Println("  # Copy files to/from a VM (scp-style)")
 	fmt.Println("  " + colorCyan + "dalang scp ./app.tar.gz MyVM:/opt/app.tar.gz" + colorReset)
 	fmt.Println("  " + colorCyan + "dalang scp -r MyVM:/var/log ./vm-logs" + colorReset)
+	fmt.Println()
+	fmt.Println("  # Share a local dev server on a public URL")
+	fmt.Println("  " + colorCyan + "dalang tunnel --url http://localhost:8000" + colorReset)
 	fmt.Println()
 	fmt.Println("  # Add custom domain")
 	fmt.Println("  " + colorCyan + "dalang domain enable MyVM" + colorReset)
@@ -393,6 +401,8 @@ func cmdHelpFor(command string) error {
 		printDownloadHelp()
 	case "scp", "cp":
 		printScpHelp()
+	case "tunnel":
+		printTunnelHelp()
 	default:
 		return fmt.Errorf("no help for unknown command: %s", command)
 	}
