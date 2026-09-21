@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -545,6 +546,38 @@ func TestPrintReclaimHintSilentWithoutALabel(t *testing.T) {
 	r := &tunnelReporter{localURL: "http://localhost:8000"}
 	if out := captureStdout(t, r.printReclaimHint); out != "" {
 		t.Fatalf("expected no hint before any address was assigned, got:\n%s", out)
+	}
+}
+
+func TestStaleCredentialsDoNotBlockAnAnonymousTunnel(t *testing.T) {
+	// Reported by a user running `dalang tunnel --url http://localhost:80` with
+	// a credentials file six weeks old. There is no --token flag: the token is
+	// read from disk without them asking, so refusing the whole tunnel over an
+	// expired one broke the single promise this feature makes — that it works
+	// without an account. Anyone who signed in once and let it lapse was locked
+	// out of the free tier.
+	refused := &tunnel.FatalError{Code: tunnel.CodeBadRequest, Message: "refused"}
+
+	cases := []struct {
+		name   string
+		err    error
+		stored bool
+		want   bool
+	}{
+		{"stored token refused -> retry anonymously", refused, true, true},
+		{"no token to blame -> do not retry", refused, false, false},
+		{"a different refusal is not about the token", &tunnel.FatalError{Code: tunnel.CodeLabelTaken}, true, false},
+		{"rate limited is a real refusal, not a bad token", &tunnel.FatalError{Code: tunnel.CodeRateLimited}, true, false},
+		{"a transport error is not a token problem", errors.New("connection reset"), true, false},
+		{"a clean exit retries nothing", nil, true, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldRetryAnonymously(tc.err, tc.stored); got != tc.want {
+				t.Fatalf("shouldRetryAnonymously(%v, %v) = %v, want %v", tc.err, tc.stored, got, tc.want)
+			}
+		})
 	}
 }
 

@@ -140,27 +140,32 @@ func cmdTunnel(args []string) error {
 
 	reporter := &tunnelReporter{localURL: localURL, authenticated: token != ""}
 
-	client, err := tunnel.New(tunnel.Options{
-		ServerURL:      serverURL,
-		LocalURL:       localURL,
-		Token:          token,
-		RequestedLabel: label,
-		ReclaimToken:   reclaimToken,
-		ClientName:     "dalang-cli/" + version,
-		Events: tunnel.Events{
-			OnAssigned: func(a tunnel.Assigned) {
-				// Persist first: if the process dies a moment later, the token
-				// is the only way back to the address just printed.
-				persistReclaim(a)
-				reporter.assigned(a)
+	buildClient := func(tok string) (*tunnel.Client, error) {
+		reporter.authenticated = tok != ""
+		return tunnel.New(tunnel.Options{
+			ServerURL:      serverURL,
+			LocalURL:       localURL,
+			Token:          tok,
+			RequestedLabel: label,
+			ReclaimToken:   reclaimToken,
+			ClientName:     "dalang-cli/" + version,
+			Events: tunnel.Events{
+				OnAssigned: func(a tunnel.Assigned) {
+					// Persist first: if the process dies a moment later, the token
+					// is the only way back to the address just printed.
+					persistReclaim(a)
+					reporter.assigned(a)
+				},
+				OnNotice:    reporter.notice,
+				OnRequest:   reporter.request,
+				OnReconnect: reporter.reconnect,
+				OnShutdown:  reporter.shutdown,
+				OnDebug:     PrintDebug,
 			},
-			OnNotice:    reporter.notice,
-			OnRequest:   reporter.request,
-			OnReconnect: reporter.reconnect,
-			OnShutdown:  reporter.shutdown,
-			OnDebug:     PrintDebug,
-		},
-	})
+		})
+	}
+
+	client, err := buildClient(token)
 	if err != nil {
 		return err
 	}
@@ -183,6 +188,29 @@ func cmdTunnel(args []string) error {
 	}
 
 	runErr := client.Run(ctx)
+
+	// A STALE CREDENTIALS FILE MUST NOT BLOCK A FREE TUNNEL.
+	//
+	// There is no --token flag: the token above is read from
+	// ~/.dalang/credentials without the user asking for it. Anyone who signed
+	// in once and let the token expire was being refused outright, on a feature
+	// whose whole promise is that it works without an account. Reported by a
+	// user running exactly `dalang tunnel --url http://localhost:80`.
+	//
+	// So a refusal of an IMPLICIT token is not fatal: say so plainly and open
+	// the anonymous tunnel they asked for. If a --token flag is ever added, an
+	// explicitly-passed token should still fail loudly — the user asked for
+	// that one by name.
+	if shouldRetryAnonymously(runErr, token != "") {
+		if !quietOutput && !jsonOutput {
+			printWarn("Your saved login has expired, so this tunnel is anonymous (2 hours instead of 8).")
+			printWarn("Run 'dalang auth' to sign in again.")
+		}
+		if retryClient, rerr := buildClient(""); rerr == nil {
+			client = retryClient
+			runErr = client.Run(ctx)
+		}
+	}
 
 	// The reservation window runs from the close, which has just happened:
 	// replace the worst-case deadline written at assignment time with one
@@ -260,6 +288,29 @@ func tunnelUnreachableMessage(e *tunnel.UnreachableError) error {
 
 // tunnelFatalMessage turns a protocol refusal into something the user can act
 // on; the daemon's own `message` is appended when it adds anything.
+// shouldRetryAnonymously reports whether a failed run should be retried with no
+// token.
+//
+// A STALE CREDENTIALS FILE MUST NOT BLOCK A FREE TUNNEL. There is no --token
+// flag: the token is read from ~/.dalang/credentials without the user asking
+// for it, so refusing the whole tunnel over an expired one breaks the single
+// promise this feature makes — that it works without an account. Anyone who had
+// signed in once and let the token lapse was locked out of the free tier.
+//
+// Only for an IMPLICIT token. If a --token flag is ever added, a token the user
+// named on the command line should still fail loudly: they asked for that one
+// specifically, and silently ignoring it would be its own surprise.
+func shouldRetryAnonymously(runErr error, tokenWasStored bool) bool {
+	if !tokenWasStored {
+		return false
+	}
+	var fatal *tunnel.FatalError
+	if !errors.As(runErr, &fatal) {
+		return false
+	}
+	return fatal.Code == tunnel.CodeBadRequest
+}
+
 func tunnelFatalMessage(fatal *tunnel.FatalError, label string) error {
 	detail := ""
 	if fatal.Message != "" {
