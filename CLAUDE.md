@@ -68,6 +68,40 @@ The CLI never computes what a customer is *charged* — it only displays estimat
 Keep it that way: amounts must come from the API response, not from local
 arithmetic.
 
+## Tunnels — and a migration in progress
+
+`dalang tunnel` opens a WebSocket to a Rust/Pingora daemon and serves HTTP
+requests it forwards. The wire contract is **frozen** in `PROTOCOL.md` in the
+sibling `dalang-tunnel` repo (private); this CLI and that daemon both implement
+it. If something in it is wrong, change the file first — two implementations
+reading one document is what keeps them able to talk, and it has already caught
+two interop bugs neither side could find alone.
+
+**The domain is moving** from `try.dalang.io` to `trydalang.io`, its own
+registrable domain, so abuse through a tunnel cannot get `dalang.io` flagged by
+Safe Browsing or mail filters — those act at the registrable-domain level.
+`../dalang-tunnel/MIGRATION.md` has the full plan. What matters here:
+
+- The domain lives in **one constant**, `tunnel.Domain` in
+  `internal/tunnel/url.go`. `DefaultServerURL` and `tunnelAddress` derive from
+  it, and `TestDefaultServerURLTracksTheDomain` fails if anyone hardcodes around
+  it. A domain in several places is a migration that half-happens.
+- `NormalizeLabel` accepts **both** domains. Links from before the move are in
+  chat messages already; nobody should need to know which era theirs came from.
+- **Do not flip the constant until DNS resolves.** Shipping a CLI that dials a
+  host with no DNS breaks every install.
+
+Two rules this feature exists under, both learned the hard way:
+
+- **A stale credentials file must not block a free tunnel.** There is no
+  `--token` flag — the token is read from `~/.dalang/credentials` without the
+  user asking — so a refused token is not a statement of intent. It warns and
+  opens an anonymous tunnel. A user hit this with credentials six weeks old and
+  was locked out of a feature whose whole promise is that it needs no account.
+- **`install.sh` serves `releases/latest`.** A fix merged to `main` reaches
+  nobody until it is tagged, and `releases/latest` lags the tag by a moment, so
+  re-check a fresh install rather than concluding the release is broken.
+
 ## Conventions
 
 - **Cross-platform matters.** Targets include Android/Termux and Windows. Note the `_unix.go`/`_windows.go` build-tag pairs (`console_*.go`, `signal_*.go`), the Android arg-fixup in `Execute()` (the linker prepends the binary path), and Windows console setup (`enableWindowsConsole`). Avoid `syscall.Kill` and similar Unix-only calls in shared files.
