@@ -2,7 +2,7 @@
 
 This document helps AI assistants understand and use the Dalang CLI tool effectively.
 
-_Verified against the CLI source and the api.dalang.io image map on 2026-09-21 (CLI **v1.19.x**)._
+_Verified against the CLI source and the api.dalang.io image map on 2026-09-22 (CLI **v1.21.x**)._
 
 ## Overview
 
