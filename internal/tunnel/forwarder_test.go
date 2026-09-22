@@ -105,6 +105,45 @@ func TestForwarderReplaysRequestFaithfully(t *testing.T) {
 	}
 }
 
+func TestForwarderFillsClientAddressWhenTheDaemonSentOne(t *testing.T) {
+	var gotXFF string
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotXFF = r.Header.Get("X-Forwarded-For")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer local.Close()
+
+	f := mustForwarder(t, local.URL)
+	// The browser sent no X-Forwarded-For, but the daemon computed remote_ip.
+	f.Do(context.Background(), Request{
+		Type: TypeRequest, ID: "01J", Method: http.MethodGet, Path: "/",
+		RemoteIP: "203.0.113.9",
+	})
+	if gotXFF != "203.0.113.9" {
+		t.Fatalf("X-Forwarded-For = %q, want the daemon's remote_ip", gotXFF)
+	}
+}
+
+func TestForwarderDoesNotOverrideAnExistingClientAddress(t *testing.T) {
+	var gotXFF string
+	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotXFF = r.Header.Get("X-Forwarded-For")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer local.Close()
+
+	f := mustForwarder(t, local.URL)
+	// Cloudflare already set X-Forwarded-For; remote_ip must not clobber it.
+	f.Do(context.Background(), Request{
+		Type: TypeRequest, ID: "01J", Method: http.MethodGet, Path: "/",
+		Headers:  map[string][]string{"X-Forwarded-For": {"198.51.100.7"}},
+		RemoteIP: "203.0.113.9",
+	})
+	if gotXFF != "198.51.100.7" {
+		t.Fatalf("X-Forwarded-For = %q, want the browser's value preserved", gotXFF)
+	}
+}
+
 func TestForwarderHonoursHostHeaderFromDaemon(t *testing.T) {
 	var gotHost string
 	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -181,6 +181,15 @@ func (f *Forwarder) Do(ctx context.Context, req Request) Result {
 		}
 	}
 
+	// The daemon computes the visitor's real address (Cloudflare's
+	// CF-Connecting-IP when the peer is Cloudflare, otherwise the socket peer)
+	// and puts it in remote_ip. It also forwards the browser's own
+	// X-Forwarded-For, so on the public path one is already present; only fill
+	// the gap, so a direct request never reaches the app with no client address.
+	if httpReq.Header.Get("X-Forwarded-For") == "" && req.RemoteIP != "" {
+		httpReq.Header.Set("X-Forwarded-For", req.RemoteIP)
+	}
+
 	resp, err := f.client.Do(httpReq)
 	if err != nil {
 		return f.fail(req, start, err)

@@ -54,6 +54,10 @@ const (
 	NoticeRequestTooLarge = "request_too_large"
 	NoticeResponseDropped = "response_dropped"
 	NoticeNearingExpiry   = "nearing_expiry"
+	// NoticeTokenUnverified: a token was offered but api.dalang.io could not be
+	// reached to check it, so the session opened anonymous. Advisory — the
+	// tunnel is up; the message explains why it is shorter.
+	NoticeTokenUnverified = "token_unverified"
 )
 
 // Shutdown reasons the daemon may send in a `shutdown` frame.

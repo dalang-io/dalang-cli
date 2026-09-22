@@ -515,6 +515,8 @@ func tunnelNoticeFallback(code string) string {
 		return "A response could not be delivered"
 	case tunnel.NoticeNearingExpiry:
 		return "This tunnel is close to its expiry time"
+	case tunnel.NoticeTokenUnverified:
+		return "Could not verify your saved login, so this tunnel is anonymous (2 hours instead of 8)"
 	default:
 		return "Notice from the tunnel server"
 	}
