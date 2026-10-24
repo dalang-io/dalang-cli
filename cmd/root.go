@@ -69,7 +69,7 @@ func printUsage(format string, args ...interface{}) {
 // knownCommands lists the primary command names used for "did you mean"
 // suggestions on an unknown command.
 var knownCommands = []string{
-	"auth", "credit", "service", "shell", "exec", "console",
+	"auth", "credit", "service", "hosting", "shell", "exec", "console",
 	"start", "stop", "delete", "domain", "price", "update",
 	"scp", "tunnel", "version", "help",
 }
@@ -283,6 +283,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Printf("  %sService Management%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "service list" + colorReset + "               List all services (VPS, containers, apps)")
+	fmt.Println("    " + colorCyan + "hosting accounts" + colorReset + "           List hosting accounts (OAuth, read-only)")
 	fmt.Println("    " + colorCyan + "service info <name>" + colorReset + "        Show detailed info about a service")
 	fmt.Println("    " + colorCyan + "service create" + colorReset + "             Create a new VPS")
 	fmt.Println()
