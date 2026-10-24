@@ -206,6 +206,8 @@ func Execute() error {
 		return cmdCredit(cmdArgs)
 	case "service", "services":
 		return cmdService(cmdArgs)
+	case "hosting":
+		return cmdHosting(cmdArgs)
 	case "shell":
 		return cmdShell(cmdArgs)
 	case "exec":
@@ -377,6 +379,8 @@ func cmdHelpFor(command string) error {
 		printCreditHelp()
 	case "service", "services":
 		printServiceHelp()
+	case "hosting":
+		printHostingHelp()
 	case "shell":
 		printShellHelp()
 	case "exec":
