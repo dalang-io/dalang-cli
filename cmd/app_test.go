@@ -29,6 +29,7 @@ type fakeGitHubAPI struct {
 	rebuilt    map[string]interface{}
 	deleted    map[string]interface{}
 	settings   map[string]interface{}
+	envPosted  map[string]interface{}
 	connected  bool
 }
 
@@ -73,7 +74,7 @@ func newFakeGitHubAPI(t *testing.T) *fakeGitHubAPI {
 			if len(f.statuses) > 1 {
 				f.statuses = f.statuses[1:]
 			}
-			w.Write([]byte(`{"success":true,"data":{"id":"dep-new-1","repo_full_name":"acme/shop","branch":"trunk","port":3000,"subdomain":"shop-dep-new.svc.dalang.io","status":"` + st + `","auto_deploy":true,"auto_renew":true,"expired_at":"2026-11-29T00:00:00Z"}}`))
+			w.Write([]byte(`{"success":true,"data":{"id":"dep-new-1","repo_full_name":"acme/shop","branch":"trunk","port":3000,"subdomain":"shop-dep-new.svc.dalang.io","status":"` + st + `","auto_deploy":true,"auto_renew":true,"expired_at":"2026-11-29T00:00:00Z","env_vars":{"KEEP":"1","DROP":"x","API_KEY":"old"}}}`))
 		case "/github/deployments":
 			w.Write([]byte(`{"success":true,"data":[{"id":"dep-new-1","repo_full_name":"acme/shop","branch":"trunk","subdomain":"shop-dep-new.svc.dalang.io","status":"running"},{"id":"dep-old-2","repo_full_name":"acme/blog","display_name":"Blog","status":"running"}]}`))
 		case "/github/deployments/rebuild":
@@ -82,6 +83,9 @@ func newFakeGitHubAPI(t *testing.T) *fakeGitHubAPI {
 		case "/github/deployments/delete":
 			f.deleted = read(r)
 			w.Write([]byte(`{"success":true}`))
+		case "/github/deployments/update-env":
+			f.envPosted = read(r)
+			w.Write([]byte(`{"success":true,"message":"Environment saved"}`))
 		case "/github/deployments/subscription-settings":
 			f.settings = read(r)
 			w.Write([]byte(`{"success":true}`))
@@ -323,5 +327,99 @@ func TestAppUnknownCommandAndHelp(t *testing.T) {
 	}
 	if err := cmdApp([]string{"--help"}); err != nil {
 		t.Errorf("--help: %v", err)
+	}
+}
+
+func indexOf(calls []string, path string) int {
+	for i, c := range calls {
+		if c == path {
+			return i
+		}
+	}
+	return -1
+}
+
+// The API replaces the whole map, so a change must be merged into the stored one.
+func TestAppEnv_SetAndUnsetAreMergedIntoTheStoredMap(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+
+	captureStdout(t, func() {
+		if err := cmdApp([]string{"env", "shop", "--set", "API_KEY=new", "--set", "ADDED=1", "--unset", "DROP"}); err != nil {
+			t.Error(err)
+		}
+	})
+	env, _ := f.envPosted["env_vars"].(map[string]interface{})
+	if f.envPosted["deployment_id"] != "dep-new-1" || env["KEEP"] != "1" || env["API_KEY"] != "new" || env["ADDED"] != "1" {
+		t.Errorf("posted %v", f.envPosted)
+	}
+	if _, still := env["DROP"]; still {
+		t.Errorf("an unset variable was sent again: %v", env)
+	}
+	if f.did("/github/deployments/rebuild") {
+		t.Error("rebuilt without --rebuild: saved variables apply from the NEXT build, and the customer decides when")
+	}
+}
+
+func TestAppEnv_RebuildSavesFirstThenBuildsThenWaits(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	var err error
+	out := captureStdout(t, func() { err = cmdApp([]string{"env", "shop", "--set", "FEATURE=on", "--rebuild"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i, j := indexOf(f.calls, "/github/deployments/update-env"), indexOf(f.calls, "/github/deployments/rebuild"); i < 0 || j < 0 || i > j {
+		t.Errorf("order: save at %d, rebuild at %d (%v): the build must run with what was just saved", i, j, f.calls)
+	}
+	var doc map[string]interface{}
+	if jerr := json.Unmarshal([]byte(out), &doc); jerr != nil || doc["status"] != "running" {
+		t.Errorf("one JSON document with the final status, got %q (%v)", out, jerr)
+	}
+}
+
+func TestAppEnv_RebuildAloneBuildsWithoutSaving(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	captureStdout(t, func() {
+		if err := cmdApp([]string{"env", "shop", "--rebuild"}); err != nil {
+			t.Error(err)
+		}
+	})
+	if f.envPosted != nil || f.rebuilt == nil {
+		t.Errorf("saved=%v rebuilt=%v", f.envPosted, f.rebuilt)
+	}
+}
+
+func TestAppEnv_ListHidesValuesUnlessAsked(t *testing.T) {
+	resetGlobalFlags()
+	t.Cleanup(resetGlobalFlags)
+	newFakeGitHubAPI(t)
+
+	hidden := captureStdout(t, func() { cmdApp([]string{"env", "shop"}) })
+	if !strings.Contains(hidden, "API_KEY=********") || strings.Contains(hidden, "old") {
+		t.Errorf("values must be hidden by default: %q", hidden)
+	}
+	shown := captureStdout(t, func() { cmdApp([]string{"env", "shop", "--reveal"}) })
+	if !strings.Contains(shown, "API_KEY=old") {
+		t.Errorf("--reveal: %q", shown)
+	}
+	jsonOutput = true
+	asJSON := captureStdout(t, func() { cmdApp([]string{"env", "shop"}) })
+	if !strings.Contains(asJSON, `"API_KEY": "old"`) {
+		t.Errorf("--json is for the owner's own tooling and carries the values: %q", asJSON)
+	}
+}
+
+func TestAppEnv_BadVariableNameIsRefusedBeforeTheAPIIsUsed(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	for _, args := range [][]string{{"env", "shop", "--set", "A.B=1"}, {"env", "shop", "--set", "NOEQUALS"}, {"env"}} {
+		if err := cmdApp(args); err == nil {
+			t.Errorf("%v accepted", args)
+		}
+	}
+	if len(f.calls) != 0 || f.envPosted != nil {
+		t.Errorf("the API was used for invalid input: %v", f.calls)
 	}
 }

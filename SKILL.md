@@ -87,6 +87,7 @@ An agent can create, deploy and manage every kind of service from the CLI alone:
 |---|---|
 | deploy a GitHub repository (rebuilds on every push) | `dalang app create --repo owner/name --yes --json` |
 | see / rebuild / read logs of an app | `dalang app list`, `app info <n>`, `app rebuild <n>`, `app logs <n> [--build]` |
+| change an app's environment variables | `dalang app env <n> --set K=V --unset K --rebuild` |
 | keep or end an app's subscription | `dalang app extend <n> --months 1\|12`, `app settings <n> --auto-renew on\|off --stop-at-period-end on\|off`, `app delete <n>` |
 | create a database / ready-made app / runtime | `dalang container templates`, then `dalang container create --type T --yes --json` |
 | manage a container | `dalang container list\|info\|start\|stop\|restart\|env\|recreate` |

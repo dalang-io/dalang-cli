@@ -15,10 +15,11 @@ import (
 // AI agent needs no dashboard. The one thing that cannot be done from here is linking
 // GitHub to the account in the first place: that is an OAuth login in a browser.
 //
-// A GitHub app is stateless (rebuilt from the repository), and its environment variables
-// are fixed when it is created: the API has no operation to change them afterwards.
+// A GitHub app is stateless (rebuilt from the repository). Its environment variables are
+// saved with 'app env' and used by the NEXT build: the running container is not touched, so a
+// change is followed by a rebuild ('app env --rebuild').
 
-const appCmdUsage = "usage: dalang app <list|info|repos|create|rebuild|logs|extend|settings|delete> ..."
+const appCmdUsage = "usage: dalang app <list|info|repos|create|rebuild|env|logs|extend|settings|delete> ..."
 
 func cmdApp(args []string) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
@@ -37,6 +38,8 @@ func cmdApp(args []string) error {
 		return appCreate(rest)
 	case "rebuild", "redeploy":
 		return appRebuild(rest)
+	case "env":
+		return appEnv(rest)
 	case "logs":
 		return appLogs(rest)
 	case "extend", "subscribe", "renew":
@@ -524,17 +527,26 @@ func appRebuild(args []string) error {
 	if err != nil {
 		return err
 	}
+	return runRebuild(client, app, wait, timeout, nil)
+}
+
+// runRebuild starts a build of the app's branch (which runs with the environment saved at that
+// moment) and, with wait, follows it to running or failed. `extra` is added to the result.
+func runRebuild(client *api.Client, app *api.Deployment, wait bool, timeout time.Duration, extra map[string]interface{}) error {
 	say("Rebuilding %s from %s…", deploymentName(*app), app.Branch)
 	if _, err := client.Post("/github/deployments/rebuild", map[string]string{"deployment_id": app.ID}); err != nil {
 		return fmt.Errorf("could not start the rebuild: %w", err)
 	}
 	result := map[string]interface{}{"id": app.ID, "name": deploymentName(*app), "status": "building"}
+	for k, v := range extra {
+		result[k] = v
+	}
 	if !wait {
 		return finishApp(result, nil)
 	}
 	d, err := waitForApp(client, app.ID, timeout)
 	if d != nil {
-		result["status"], result["url"] = d.Status, d.url()
+		result["status"], result["url"], result["branch"] = d.Status, d.url(), d.Branch
 	}
 	if err != nil {
 		if jsonOutput {
@@ -543,8 +555,97 @@ func appRebuild(args []string) error {
 		}
 		return err
 	}
-	result["branch"] = d.Branch
 	return finishApp(result, d)
+}
+
+// appEnv shows or changes the environment of an app. The API REPLACES the whole map, so a
+// change is merged into what is stored first; it is used from the next build.
+func appEnv(args []string) error {
+	var set kvFlag
+	var unset stringList
+	var rebuild, reveal bool
+	var timeout time.Duration
+	wait := true
+	fs := newFlags("app env")
+	fs.Var(&set, "set", "")
+	fs.Var(&unset, "unset", "")
+	fs.BoolVar(&rebuild, "rebuild", false, "")
+	fs.BoolVar(&reveal, "reveal", false, "")
+	fs.BoolVar(&wait, "wait", true, "")
+	fs.DurationVar(&timeout, "timeout", 20*time.Minute, "")
+	pos, err := parseInterspersed(fs, args)
+	if err != nil || len(pos) != 1 {
+		return fmt.Errorf("usage: dalang app env <name|id> [--set KEY=VALUE]... [--unset KEY]... [--rebuild] [--reveal]")
+	}
+	client, err := api.NewAuthenticatedClient()
+	if err != nil {
+		return err
+	}
+	client.Verbose = VerboseOutput
+	app, err := resolveApp(client, pos[0])
+	if err != nil {
+		return err
+	}
+	d, err := getAppDetails(client, app.ID)
+	if err != nil {
+		return err
+	}
+	env := map[string]string{}
+	for k, v := range d.EnvVars {
+		env[k] = v
+	}
+
+	if len(set) == 0 && len(unset) == 0 {
+		if rebuild {
+			return runRebuild(client, app, wait, timeout, nil) // rebuild with what is saved
+		}
+		if jsonOutput {
+			emitJSON(env)
+			return nil
+		}
+		keys := make([]string, 0, len(env))
+		for k := range env {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if reveal {
+				fmt.Printf("%s=%s\n", k, env[k])
+			} else {
+				fmt.Printf("%s=********\n", k)
+			}
+		}
+		return nil
+	}
+
+	for k, v := range set {
+		env[k] = v
+	}
+	for _, k := range unset {
+		delete(env, k)
+	}
+	if _, err := client.Post("/github/deployments/update-env", map[string]interface{}{"deployment_id": app.ID, "env_vars": env}); err != nil {
+		return fmt.Errorf("could not save the environment: %w", err)
+	}
+	say("Saved %d variable(s). They are used from the next build.", len(env))
+	if rebuild {
+		return runRebuild(client, app, wait, timeout, map[string]interface{}{"env_keys": sortedKeys(env)})
+	}
+	if jsonOutput {
+		emitJSON(map[string]interface{}{"id": app.ID, "env_keys": sortedKeys(env), "applies_on": "next_build"})
+		return nil
+	}
+	say("Apply it now with: dalang app rebuild %s", deploymentName(*app))
+	return nil
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func appLogs(args []string) error {
@@ -743,6 +844,7 @@ func printAppHelp() {
     dalang app repos [--search text]                 Repositories you can deploy
     dalang app create --repo owner/name [flags]      Deploy a repository (pays from credits)
     dalang app rebuild <name|id>                     Build the branch again
+    dalang app env <name|id> [--set K=V]... [--unset K]... [--rebuild]   Show or change the environment
     dalang app logs <name|id> [--build] [--lines N]  Runtime log, or the latest build log
     dalang app extend <name|id> [--months 1|12]      Pay for another period
     dalang app settings <name|id> [--auto-renew on|off] [--stop-at-period-end on|off]
@@ -752,7 +854,7 @@ func printAppHelp() {
     --repo owner/name     the repository (required)
     --branch B            default: the repository's default branch
     --port N              default: the Dockerfile's EXPOSE
-    --env KEY=VALUE       repeatable; fixed at creation, it cannot be changed later
+    --env KEY=VALUE       repeatable; change it later with 'dalang app env'.
     --name text           display name, default: the repository name
     --months 1|12         subscription period (default 1)
     --max-price N         refuse to pay a total (incl. PPN) above N rupiah
@@ -762,6 +864,11 @@ func printAppHelp() {
 %sAUTO-REDEPLOY:%s
     An app is rebuilt by itself on every push to its branch (a webhook on the repository).
     'dalang app rebuild' builds it again without a push.
+
+%sENVIRONMENT:%s
+    'dalang app env shop --set API_KEY=... --unset OLD --rebuild' saves the change and builds again.
+    Saved variables are used by the NEXT build; the running container is not touched until then.
+    Without --set/--unset it lists the variables (values hidden; --reveal shows them, --json always does).
 
 %sREQUIREMENTS:%s
     - A file named Dockerfile in the root of the repository, with an Alpine-based image
@@ -782,6 +889,7 @@ func printAppHelp() {
     dalang app settings shop --auto-renew off
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
