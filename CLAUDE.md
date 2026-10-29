@@ -68,6 +68,21 @@ The CLI never computes what a customer is *charged* — it only displays estimat
 Keep it that way: amounts must come from the API response, not from local
 arithmetic.
 
+## Paying for things: ask the API, never compute (`dalang app|container`)
+
+A credit payment is `POST /credits/pay`, and the server treats an amount **below its own price as fraud**
+(account suspended, services stopped, wallet zeroed). So `cmd/credits_pay.go` (`payWithQuote`) never works a price
+out: it calls `POST /credits/quote` (api.dalang.io `specs/10`), shows the answer, checks `--max-price` and the
+balance (against the GROSS), asks for `--yes`, and pays `amount = quote.net`. Do not add a price table to a command.
+`dalang volume` and `service create` need none: their endpoints price server-side.
+
+Agent-facing output rules (`cmd/agent_io.go`): `--json` leaves stdout as one document and sends progress to stderr
+(`say`); `requireConfirmation` fails without `--yes` when there is no terminal instead of waiting on a prompt
+(`term.IsTerminal`, not `ModeCharDevice`, which is true for `/dev/null`); `waitFor` bounds every wait.
+`cmd/container.go` holds a copy of the wizard's template table (types, default versions, required env); update it
+when `dalang.io/src/lib/components/wizard/containerTemplates.js` changes (`TestContainerTemplatesAreTheDocumentedOnes`
+counts them).
+
 ## Tunnels — and a migration in progress
 
 `dalang tunnel` opens a WebSocket to a Rust/Pingora daemon and serves HTTP

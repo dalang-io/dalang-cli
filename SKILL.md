@@ -75,6 +75,77 @@ Credentials are stored in `~/.dalang/credentials` (mode 0600) and persist across
 The CLI **refreshes the session automatically** as the token nears expiry, so an agent
 authenticates once and keeps operating without re-login.
 
+## Everything Without the Dashboard (AI agents)
+
+> **Not yet in a released binary.** `dalang app`, `dalang container`, `dalang volume` and
+> `dalang shell` into containers/apps are in the source after v1.21.x and ship with the next
+> release. `dalang version` tells you what you have; `dalang help app` exists only in a build with them.
+
+An agent can create, deploy and manage every kind of service from the CLI alone:
+
+| To... | Run |
+|---|---|
+| deploy a GitHub repository (rebuilds on every push) | `dalang app create --repo owner/name --yes --json` |
+| see / rebuild / read logs of an app | `dalang app list`, `app info <n>`, `app rebuild <n>`, `app logs <n> [--build]` |
+| keep or end an app's subscription | `dalang app extend <n> --months 1\|12`, `app settings <n> --auto-renew on\|off --stop-at-period-end on\|off`, `app delete <n>` |
+| create a database / ready-made app / runtime | `dalang container templates`, then `dalang container create --type T --yes --json` |
+| manage a container | `dalang container list\|info\|start\|stop\|restart\|env\|recreate` |
+| get extra storage | `dalang volume create --name N --size GB --yes`, then `volume attach <v> --vps <name>` |
+| create / manage a VPS | `dalang service create ...`, `start`, `stop`, `service upgrade`, `service extend` (see below) |
+| open a shell | `dalang shell <name>` for a VPS, a container or an app; `dalang exec <vps> "cmd"` for one command |
+
+### Three things need a human, once
+1. **Log in**: `dalang auth` (a code to enter at dalang.io/auth/cli). After that the session refreshes by itself.
+2. **Link GitHub** to the account (a browser login with GitHub, in the dashboard). Only `dalang app` needs it;
+   without it `app repos` / `app create` say so.
+3. **Top up credits**: `dalang credit add <thousands>` prints a payment link a person pays. An agent pays for
+   services **only from credits**; it never enters a card.
+
+### Rules that keep an agent safe and scriptable
+- `--json`: stdout is **one JSON document** (an array for lists); progress and warnings go to stderr. Parse stdout only.
+- `--yes` (`-y`): required for anything that **costs money or destroys data** when there is no terminal to ask.
+  Without it the command **fails** (it never waits on a prompt): `refusing to continue without confirmation: pass --yes`.
+- **The CLI never works out a price.** Before paying it asks the API for a quote and shows
+  `Price: Rp N + PPN Rp M = Rp T (credits: Rp B)`, then pays exactly that. `--max-price T` refuses a total above
+  `T` rupiah (incl. PPN): set it when an agent decides what it is willing to spend. Short of credits, the command
+  stops before paying and says by how much.
+- **Exit code**: `0` success, `1` any failure (message on stderr; with `--json` a partial result may still be printed).
+- Commands that create things **wait** until the thing is running (`--wait`, default on; `--wait=false` returns
+  once paid; `--timeout` bounds it). A failed build exits 1 and points at `dalang app logs <id> --build`.
+- A name that matches several services is refused with their **ids**: pass the id.
+
+### Deploy a GitHub repository and keep it updated
+```bash
+dalang app repos --search shop --json              # what can be deployed
+dalang app create --repo acme/shop --env PORT=3000 --months 1 --max-price 40000 --yes --json
+#  -> {"id":"...","status":"running","url":"https://shop-xxxx.svc.dalang.io", ...}
+git push origin main                               # the app rebuilds by itself
+dalang app logs shop --build                       # why a build failed
+dalang app rebuild shop                            # build again without a push
+```
+Requirements the CLI checks **before** it creates or charges anything: the repository is one your GitHub account
+can see, and its branch has a **Dockerfile in the repository root**; the port is the Dockerfile's `EXPOSE`
+(or `--port N`). Use an **Alpine-based image** (`FROM node:22-alpine`): a Debian/Ubuntu base builds but cannot
+start. An app is **stateless** (files written in it are lost on each build) and its `--env` values are **fixed at
+creation**: the API has no way to change them later (delete and recreate).
+
+### Create and manage a container
+```bash
+dalang container templates                         # 20 types, default versions, what must be set
+dalang container create --type postgresql --name orders-db --env POSTGRES_PASSWORD=... --yes --json
+dalang container info orders-db --json             # host, port, connection_string, env
+dalang container env orders-db --set MAX_CONNECTIONS=200 --restart
+```
+`create` refuses what a template cannot start without (required `--env`, the database it is bundled with:
+`odoo` needs `--postgres-id`/`--create-postgres`, `wordpress` needs `--mysql-id`/`--create-mysql`) **before** paying.
+`env` merges your change into the stored environment (the API replaces the whole map) and it applies after a
+restart. There is no customer delete for a container: `recreate` rebuilds it from its image and loses data outside
+its persistent volumes.
+
+### Storage
+`dalang volume create --name data --size 10 --yes` is charged by the API from credits. `volume attach <v> --vps <name>`
+mounts it in a VPS; `detach`, `resize`, `delete` (destroys the data) follow the same `--yes` rule.
+
 ## Authentication
 
 Before using any command, the user must be authenticated:
@@ -370,6 +441,9 @@ dropped — so a type added on the server side degrades quietly here.
 | `dalang credit history` | Show transaction history |
 | `dalang credit add <N>` | Top up N thousand IDR |
 | `dalang price` | Show VPS pricing table |
+| `dalang app <list\|info\|repos\|create\|rebuild\|logs\|extend\|settings\|delete>` | GitHub apps (next release) |
+| `dalang container <templates\|list\|info\|create\|start\|stop\|restart\|env\|recreate>` | Template containers (next release) |
+| `dalang volume <list\|create\|attach\|detach\|resize\|delete>` | Extra storage for a VPS (next release) |
 | `dalang price --cpu X --ram XG` | Calculate price for a config |
 | `dalang service list` | List all services |
 | `dalang service info <name>` | Show service details |
