@@ -465,6 +465,7 @@ type ContainerListResponse struct {
 type Container struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
+	DisplayName   string `json:"display_name"`
 	ContainerType string `json:"container_type"`
 	Status        string `json:"status"`
 	Plan          string `json:"plan"`
@@ -479,13 +480,18 @@ type DeploymentListResponse struct {
 
 // Deployment represents an app deployment
 type Deployment struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Status    string `json:"status"`
-	RepoURL   string `json:"repo_url"`
-	Branch    string `json:"branch"`
-	URL       string `json:"url"`
-	ExpiresAt string `json:"expires_at"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// The deployments list sends display_name / repo_full_name / subdomain; it has no
+	// "name", so Name alone left every app unnamed in `dalang service list`.
+	DisplayName  string `json:"display_name"`
+	RepoFullName string `json:"repo_full_name"`
+	Subdomain    string `json:"subdomain"`
+	Status       string `json:"status"`
+	RepoURL      string `json:"repo_url"`
+	Branch       string `json:"branch"`
+	URL          string `json:"url"`
+	ExpiresAt    string `json:"expires_at"`
 }
 
 // TopupResponse represents topup creation response

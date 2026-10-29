@@ -49,10 +49,17 @@ func findVPSByName(client *api.Client, name string) (*api.VPS, error) {
 func vpsNotFoundError(name string, list []api.VPS) error {
 	suggestions := suggestNames(name, list, 3)
 	if len(suggestions) == 0 {
-		return fmt.Errorf("VPS '%s' not found", name)
+		return &notFoundError{msg: fmt.Sprintf("VPS '%s' not found", name)}
 	}
-	return fmt.Errorf("VPS '%s' not found. Did you mean: %s?", name, strings.Join(suggestions, ", "))
+	return &notFoundError{msg: fmt.Sprintf("VPS '%s' not found. Did you mean: %s?", name, strings.Join(suggestions, ", "))}
 }
+
+// notFoundError is a lookup that ran fine and found nothing, as opposed to one that
+// failed (network, auth). `dalang shell` only goes on to look at containers and apps
+// for the first kind.
+type notFoundError struct{ msg string }
+
+func (e *notFoundError) Error() string { return e.msg }
 
 // suggestNames returns up to max VPS names similar to the query, ranked by edit
 // distance. A name qualifies when it is within a small edit distance or is a

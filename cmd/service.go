@@ -111,7 +111,7 @@ func serviceList() error {
 				services = append(services, UnifiedService{
 					Type:      "container",
 					ID:        c.ID,
-					Name:      c.Name,
+					Name:      containerName(c),
 					Status:    c.Status,
 					ExpiresAt: c.ExpiresAt,
 					Details:   fmt.Sprintf("%s/%s", c.ContainerType, c.Plan),
@@ -137,7 +137,7 @@ func serviceList() error {
 				services = append(services, UnifiedService{
 					Type:      "app",
 					ID:        d.ID,
-					Name:      d.Name,
+					Name:      deploymentName(d),
 					Status:    d.Status,
 					ExpiresAt: d.ExpiresAt,
 					Details:   d.Branch,
@@ -955,7 +955,6 @@ func printServiceCreateHelp() {
     ubuntu:20.04     Ubuntu 20.04 LTS
     debian           Debian 12
     debian:12        Debian 12
-    debian:11        Debian 11
     centos           CentOS Stream 9
     rocky            Rocky Linux 9
     almalinux        AlmaLinux 9

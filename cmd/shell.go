@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -44,9 +45,20 @@ func connectTerminal(name, mode string) error {
 	}
 	client.Verbose = VerboseOutput
 
-	// Find VPS by name
+	// Find VPS by name. A name that is no VPS may still be a container or a GitHub app:
+	// those get a shell too (no tmux session, no console).
 	foundVPS, err := findVPSByName(client, name)
 	if err != nil {
+		var missing *notFoundError
+		if errors.As(err, &missing) {
+			target, terr := findServiceShellTarget(client, name)
+			if terr != nil {
+				return terr
+			}
+			if target != nil {
+				return connectServiceTerminal(target, mode)
+			}
+		}
 		return err
 	}
 
@@ -136,6 +148,12 @@ func connectTerminal(name, mode string) error {
 
 	printSuccess("Connected.\n")
 
+	return runTerminalSession(term)
+}
+
+// runTerminalSession wires Ctrl+C and window resizes to term and runs it until the
+// connection closes. Shared by the VPS shell and the container / app shell.
+func runTerminalSession(term *terminal.Terminal) error {
 	// Set up signal handling (cross-platform)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
@@ -162,10 +180,10 @@ func connectTerminal(name, mode string) error {
 }
 
 func printShellHelp() {
-	fmt.Printf(`%sdalang shell%s - Open persistent shell to VM
+	fmt.Printf(`%sdalang shell%s - Open persistent shell to VM, container or app
 
 %sUSAGE:%s
-    dalang shell <vm-name>
+    dalang shell <name>            # a VPS, a container or a GitHub app
 
 %sDESCRIPTION:%s
     Opens an interactive shell session to the specified VM using a
@@ -193,6 +211,12 @@ func printShellHelp() {
     Or press Ctrl+C.
     Note: 'exit' will end the tmux session (not just disconnect).
 
+%sCONTAINERS AND APPS:%s
+    The name is looked up as a VPS first, then as a container, then as a GitHub app
+    (by display name, instance name, repository or id). A container or an app gets
+    a plain shell, not a tmux session: nothing survives a disconnect. A GitHub app is
+    stateless, so what you change in it is gone on the next build. 'console' is VPS only.
+
 %sRELATED:%s
     dalang exec <name> "cmd"       # Execute command without interactive shell
 
@@ -203,6 +227,7 @@ func printShellHelp() {
     - tmux is auto-installed if missing on first connect
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,

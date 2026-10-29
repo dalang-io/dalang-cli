@@ -117,6 +117,13 @@ dalang console <vps-name>          # Console connection
 VM names are matched **case-insensitively**, and a close match is suggested when a
 name isn't found (e.g. `dalang shell binuss` → "Did you mean: binus?").
 
+`dalang shell` also opens a shell in a **container** or a **GitHub app**: when the name
+is no VPS it is looked up among containers, then apps (by display name, instance name,
+repository such as `example-app-go`, or id). That shell is a plain login shell, **not**
+tmux: nothing survives a disconnect, and a GitHub app is stateless, so what you change in
+it is gone on the next build. `console` is VPS only. A name that matches several services
+is refused with their ids; pass the id. Only running services have a shell.
+
 ### Check VPS Pricing
 ```bash
 # Show pricing table
@@ -188,7 +195,6 @@ The value passed to `--image` is matched loosely by the API (case-insensitive,
 | `debian` | Debian 13 (bare name = newest) |
 | `debian:13` | Debian 13 (trixie) |
 | `debian:12` | Debian 12 (bookworm) |
-| `debian:11` | Debian 11 (bullseye) |
 | `rocky` | Rocky Linux 9 |
 | `rocky:10` | Rocky Linux 10 |
 | `almalinux` | AlmaLinux 9 |
@@ -370,7 +376,7 @@ dropped — so a type added on the server side degrades quietly here.
 | `dalang service create` | Create new VPS |
 | `dalang service upgrade <name>` | Upgrade specs (paid from credits) |
 | `dalang service extend <name> --months N` | Extend subscription |
-| `dalang shell <name>` | Open interactive shell to VM |
+| `dalang shell <name>` | Open interactive shell to a VM, container or app |
 | `dalang exec <name> "cmd"` | Run a command, return output |
 | `dalang console <name>` | Open console to VM |
 | `dalang start <name>` | Start a VM |
