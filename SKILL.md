@@ -4,7 +4,7 @@
 
 This document helps AI assistants understand and use the Dalang CLI tool effectively.
 
-_Verified against the CLI source and the api.dalang.io image map on 2026-09-22 (CLI **v1.21.x**)._
+_Verified against the CLI source and the api.dalang.io image map on 2026-10-29 (CLI **v1.22.x**)._
 
 ## Overview
 
@@ -79,9 +79,10 @@ authenticates once and keeps operating without re-login.
 
 ## Everything Without the Dashboard (AI agents)
 
-> **Not yet in a released binary.** `dalang app`, `dalang container`, `dalang volume` and
-> `dalang shell` into containers/apps are in the source after v1.21.x and ship with the next
-> release. `dalang version` tells you what you have; `dalang help app` exists only in a build with them.
+> **Needs v1.22.0 or later.** `dalang app`, `dalang container`, `dalang volume` and `dalang shell`
+> into containers/apps first shipped in v1.22.0, and they call API endpoints (`/credits/quote`,
+> `/github/deployments/update-env`, `/github/deployments/update-port`) that must be live on the
+> server. `dalang version` tells you what you have; `dalang help app` exists only in a build with them.
 
 An agent can create, deploy and manage every kind of service from the CLI alone:
 
@@ -446,9 +447,9 @@ dropped — so a type added on the server side degrades quietly here.
 | `dalang credit history` | Show transaction history |
 | `dalang credit add <N>` | Top up N thousand IDR |
 | `dalang price` | Show VPS pricing table |
-| `dalang app <list\|info\|repos\|create\|rebuild\|logs\|extend\|settings\|delete>` | GitHub apps (next release) |
-| `dalang container <templates\|list\|info\|create\|start\|stop\|restart\|env\|recreate>` | Template containers (next release) |
-| `dalang volume <list\|create\|attach\|detach\|resize\|delete>` | Extra storage for a VPS (next release) |
+| `dalang app <list\|info\|repos\|create\|rebuild\|env\|port\|logs\|extend\|settings\|delete>` | GitHub apps (v1.22.0) |
+| `dalang container <templates\|list\|info\|create\|start\|stop\|restart\|env\|recreate>` | Template containers (v1.22.0) |
+| `dalang volume <list\|create\|attach\|detach\|resize\|delete>` | Extra storage for a VPS (v1.22.0) |
 | `dalang price --cpu X --ram XG` | Calculate price for a config |
 | `dalang service list` | List all services |
 | `dalang service info <name>` | Show service details |
