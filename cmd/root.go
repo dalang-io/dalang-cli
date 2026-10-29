@@ -69,7 +69,7 @@ func printUsage(format string, args ...interface{}) {
 // knownCommands lists the primary command names used for "did you mean"
 // suggestions on an unknown command.
 var knownCommands = []string{
-	"auth", "credit", "service", "hosting", "shell", "exec", "console",
+	"auth", "credit", "service", "app", "container", "volume", "hosting", "shell", "exec", "console",
 	"start", "stop", "delete", "domain", "price", "update",
 	"scp", "tunnel", "version", "help",
 }
@@ -206,6 +206,8 @@ func Execute() error {
 		return cmdCredit(cmdArgs)
 	case "service", "services":
 		return cmdService(cmdArgs)
+	case "app", "apps":
+		return cmdApp(cmdArgs)
 	case "hosting":
 		return cmdHosting(cmdArgs)
 	case "shell":
@@ -380,6 +382,8 @@ func cmdHelpFor(command string) error {
 		printCreditHelp()
 	case "service", "services":
 		printServiceHelp()
+	case "app", "apps":
+		printAppHelp()
 	case "hosting":
 		printHostingHelp()
 	case "shell":
