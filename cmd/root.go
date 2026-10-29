@@ -208,6 +208,8 @@ func Execute() error {
 		return cmdService(cmdArgs)
 	case "app", "apps":
 		return cmdApp(cmdArgs)
+	case "container", "containers":
+		return cmdContainer(cmdArgs)
 	case "hosting":
 		return cmdHosting(cmdArgs)
 	case "shell":
@@ -384,6 +386,8 @@ func cmdHelpFor(command string) error {
 		printServiceHelp()
 	case "app", "apps":
 		printAppHelp()
+	case "container", "containers":
+		printContainerHelp()
 	case "hosting":
 		printHostingHelp()
 	case "shell":
