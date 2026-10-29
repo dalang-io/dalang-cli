@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 // saved with 'app env' and used by the NEXT build: the running container is not touched, so a
 // change is followed by a rebuild ('app env --rebuild').
 
-const appCmdUsage = "usage: dalang app <list|info|repos|create|rebuild|env|logs|extend|settings|delete> ..."
+const appCmdUsage = "usage: dalang app <list|info|repos|create|rebuild|env|port|logs|extend|settings|delete> ..."
 
 func cmdApp(args []string) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
@@ -40,6 +41,8 @@ func cmdApp(args []string) error {
 		return appRebuild(rest)
 	case "env":
 		return appEnv(rest)
+	case "port":
+		return appPort(rest)
 	case "logs":
 		return appLogs(rest)
 	case "extend", "subscribe", "renew":
@@ -639,6 +642,65 @@ func appEnv(args []string) error {
 	return nil
 }
 
+// appPort shows or changes the port traffic goes to. The port is read from the Dockerfile's EXPOSE
+// once, when the app is created, and not again: a Dockerfile that later EXPOSEs another port moves
+// nothing. A new port applies from the next build (PORT, the start script and the route together).
+func appPort(args []string) error {
+	var rebuild bool
+	var timeout time.Duration
+	wait := true
+	fs := newFlags("app port")
+	fs.BoolVar(&rebuild, "rebuild", false, "")
+	fs.BoolVar(&wait, "wait", true, "")
+	fs.DurationVar(&timeout, "timeout", 20*time.Minute, "")
+	pos, err := parseInterspersed(fs, args)
+	if err != nil || len(pos) < 1 || len(pos) > 2 {
+		return fmt.Errorf("usage: dalang app port <name|id> [PORT] [--rebuild]")
+	}
+	port := 0
+	if len(pos) == 2 {
+		n, perr := strconv.Atoi(pos[1])
+		if perr != nil || n < 1 || n > 65535 {
+			return fmt.Errorf("the port must be a whole number from 1 to 65535, got %q", pos[1])
+		}
+		port = n
+	}
+	client, err := api.NewAuthenticatedClient()
+	if err != nil {
+		return err
+	}
+	client.Verbose = VerboseOutput
+	app, err := resolveApp(client, pos[0])
+	if err != nil {
+		return err
+	}
+	if port == 0 { // nothing to change: say what it is
+		d, err := getAppDetails(client, app.ID)
+		if err != nil {
+			return err
+		}
+		if jsonOutput {
+			emitJSON(map[string]interface{}{"id": d.ID, "port": d.Port})
+			return nil
+		}
+		fmt.Printf("%d\n", d.Port)
+		return nil
+	}
+	if _, err := client.Post("/github/deployments/update-port", map[string]interface{}{"deployment_id": app.ID, "port": port}); err != nil {
+		return fmt.Errorf("could not change the port: %w", err)
+	}
+	say("Port set to %d. The app uses it from the next build.", port)
+	if rebuild {
+		return runRebuild(client, app, wait, timeout, map[string]interface{}{"port": port})
+	}
+	if jsonOutput {
+		emitJSON(map[string]interface{}{"id": app.ID, "port": port, "applies_on": "next_build"})
+		return nil
+	}
+	say("Apply it now with: dalang app rebuild %s", deploymentName(*app))
+	return nil
+}
+
 func sortedKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -845,6 +907,7 @@ func printAppHelp() {
     dalang app create --repo owner/name [flags]      Deploy a repository (pays from credits)
     dalang app rebuild <name|id>                     Build the branch again
     dalang app env <name|id> [--set K=V]... [--unset K]... [--rebuild]   Show or change the environment
+    dalang app port <name|id> [PORT] [--rebuild]     Show or change the port traffic goes to
     dalang app logs <name|id> [--build] [--lines N]  Runtime log, or the latest build log
     dalang app extend <name|id> [--months 1|12]      Pay for another period
     dalang app settings <name|id> [--auto-renew on|off] [--stop-at-period-end on|off]
@@ -853,7 +916,7 @@ func printAppHelp() {
 %sCREATE FLAGS:%s
     --repo owner/name     the repository (required)
     --branch B            default: the repository's default branch
-    --port N              default: the Dockerfile's EXPOSE
+    --port N              default: the Dockerfile's EXPOSE (read ONCE, now; see 'dalang app port')
     --env KEY=VALUE       repeatable; change it later with 'dalang app env'.
     --name text           display name, default: the repository name
     --months 1|12         subscription period (default 1)
@@ -869,6 +932,11 @@ func printAppHelp() {
     'dalang app env shop --set API_KEY=... --unset OLD --rebuild' saves the change and builds again.
     Saved variables are used by the NEXT build; the running container is not touched until then.
     Without --set/--unset it lists the variables (values hidden; --reveal shows them, --json always does).
+
+%sPORT:%s
+    The port is read from the Dockerfile's EXPOSE when the app is created and NOT read again. If you later
+    change EXPOSE (or set a PORT variable) the traffic still goes to the stored port: a build warns about it
+    in its log. Change it with 'dalang app port shop 8000 --rebuild'.
 
 %sREQUIREMENTS:%s
     - A file named Dockerfile in the root of the repository, with an Alpine-based image
@@ -889,6 +957,7 @@ func printAppHelp() {
     dalang app settings shop --auto-renew off
 `,
 		colorCyan, colorReset,
+		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,
 		colorYellow, colorReset,

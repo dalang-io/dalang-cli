@@ -87,6 +87,7 @@ An agent can create, deploy and manage every kind of service from the CLI alone:
 |---|---|
 | deploy a GitHub repository (rebuilds on every push) | `dalang app create --repo owner/name --yes --json` |
 | see / rebuild / read logs of an app | `dalang app list`, `app info <n>`, `app rebuild <n>`, `app logs <n> [--build]` |
+| change the port an app is routed to | `dalang app port <n> 8000 --rebuild` |
 | change an app's environment variables | `dalang app env <n> --set K=V --unset K --rebuild` |
 | keep or end an app's subscription | `dalang app extend <n> --months 1\|12`, `app settings <n> --auto-renew on\|off --stop-at-period-end on\|off`, `app delete <n>` |
 | create a database / ready-made app / runtime | `dalang container templates`, then `dalang container create --type T --yes --json` |
@@ -127,7 +128,8 @@ dalang app rebuild shop                            # build again without a push
 Requirements the CLI checks **before** it creates or charges anything: the repository is one your GitHub account
 can see, and its branch has a **Dockerfile in the repository root**; the port is the Dockerfile's `EXPOSE`
 (or `--port N`). Use an **Alpine-based image** (`FROM node:22-alpine`): a Debian/Ubuntu base builds but cannot
-start. An app is **stateless** (files written in it are lost on each build) and its `--env` values are **fixed at
+start. The port is read from `EXPOSE` **once, at creation**; changing `EXPOSE` later does **not** move traffic (a build
+warns in its log). Change it with `dalang app port <name> 8000 --rebuild`. An app is **stateless** (files written in it are lost on each build) and its `--env` values are **fixed at
 creation**: the API has no way to change them later (delete and recreate).
 
 ### Create and manage a container

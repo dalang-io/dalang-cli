@@ -30,6 +30,7 @@ type fakeGitHubAPI struct {
 	deleted    map[string]interface{}
 	settings   map[string]interface{}
 	envPosted  map[string]interface{}
+	portPosted map[string]interface{}
 	connected  bool
 }
 
@@ -83,6 +84,9 @@ func newFakeGitHubAPI(t *testing.T) *fakeGitHubAPI {
 		case "/github/deployments/delete":
 			f.deleted = read(r)
 			w.Write([]byte(`{"success":true}`))
+		case "/github/deployments/update-port":
+			f.portPosted = read(r)
+			w.Write([]byte(`{"success":true,"message":"Port saved"}`))
 		case "/github/deployments/update-env":
 			f.envPosted = read(r)
 			w.Write([]byte(`{"success":true,"message":"Environment saved"}`))
@@ -421,5 +425,56 @@ func TestAppEnv_BadVariableNameIsRefusedBeforeTheAPIIsUsed(t *testing.T) {
 	}
 	if len(f.calls) != 0 || f.envPosted != nil {
 		t.Errorf("the API was used for invalid input: %v", f.calls)
+	}
+}
+
+func TestAppPort_ChangesItAndAppliesFromTheNextBuild(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	captureStdout(t, func() {
+		if err := cmdApp([]string{"port", "shop", "8000"}); err != nil {
+			t.Error(err)
+		}
+	})
+	if f.portPosted["deployment_id"] != "dep-new-1" || f.portPosted["port"] != float64(8000) {
+		t.Errorf("posted %v", f.portPosted)
+	}
+	if f.did("/github/deployments/rebuild") {
+		t.Error("rebuilt without --rebuild: a port applies from the next build, and the customer decides when")
+	}
+}
+
+func TestAppPort_RebuildSavesThenBuilds(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	captureStdout(t, func() {
+		if err := cmdApp([]string{"port", "shop", "8000", "--rebuild"}); err != nil {
+			t.Error(err)
+		}
+	})
+	if i, j := indexOf(f.calls, "/github/deployments/update-port"), indexOf(f.calls, "/github/deployments/rebuild"); i < 0 || j < 0 || i > j {
+		t.Errorf("order: save at %d, rebuild at %d: the build must use the port that was just saved", i, j)
+	}
+}
+
+func TestAppPort_WithoutANumberOnlyShowsIt(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	out := captureStdout(t, func() { cmdApp([]string{"port", "shop"}) })
+	if f.portPosted != nil || !strings.Contains(out, `"port": 3000`) {
+		t.Errorf("posted=%v out=%q", f.portPosted, out)
+	}
+}
+
+func TestAppPort_RefusesWhatIsNotAPortBeforeTheAPIIsUsed(t *testing.T) {
+	agentMode(t)
+	f := newFakeGitHubAPI(t)
+	for _, p := range []string{"0", "65536", "abc", "-5", "80.5"} {
+		if err := cmdApp([]string{"port", "shop", p}); err == nil {
+			t.Errorf("port %q accepted", p)
+		}
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("the API was used for an invalid port: %v", f.calls)
 	}
 }
