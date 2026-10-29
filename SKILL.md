@@ -79,8 +79,8 @@ authenticates once and keeps operating without re-login.
 
 ## Everything Without the Dashboard (AI agents)
 
-> **Needs v1.22.0 or later.** `dalang app`, `dalang container`, `dalang volume` and `dalang shell`
-> into containers/apps first shipped in v1.22.0, and they call API endpoints (`/credits/quote`,
+> **Needs v1.22.1 or later.** `dalang app`, `dalang container`, `dalang volume` and `dalang shell`
+> into containers/apps first shipped in v1.22.1, and they call API endpoints (`/credits/quote`,
 > `/github/deployments/update-env`, `/github/deployments/update-port`) that must be live on the
 > server. `dalang version` tells you what you have; `dalang help app` exists only in a build with them.
 
@@ -447,9 +447,9 @@ dropped — so a type added on the server side degrades quietly here.
 | `dalang credit history` | Show transaction history |
 | `dalang credit add <N>` | Top up N thousand IDR |
 | `dalang price` | Show VPS pricing table |
-| `dalang app <list\|info\|repos\|create\|rebuild\|env\|port\|logs\|extend\|settings\|delete>` | GitHub apps (v1.22.0) |
-| `dalang container <templates\|list\|info\|create\|start\|stop\|restart\|env\|recreate>` | Template containers (v1.22.0) |
-| `dalang volume <list\|create\|attach\|detach\|resize\|delete>` | Extra storage for a VPS (v1.22.0) |
+| `dalang app <list\|info\|repos\|create\|rebuild\|env\|port\|logs\|extend\|settings\|delete>` | GitHub apps (v1.22.1) |
+| `dalang container <templates\|list\|info\|create\|start\|stop\|restart\|env\|recreate>` | Template containers (v1.22.1) |
+| `dalang volume <list\|create\|attach\|detach\|resize\|delete>` | Extra storage for a VPS (v1.22.1) |
 | `dalang price --cpu X --ram XG` | Calculate price for a config |
 | `dalang service list` | List all services |
 | `dalang service info <name>` | Show service details |

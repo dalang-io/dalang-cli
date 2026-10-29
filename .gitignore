@@ -1,6 +1,6 @@
-# Binaries
-dalang
-dalang-*
+# Binaries (root only: skills/dalang-deploy must stay tracked)
+/dalang
+/dalang-*
 *.exe
 
 # Build output
