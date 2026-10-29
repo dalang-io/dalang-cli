@@ -642,9 +642,9 @@ func appEnv(args []string) error {
 	return nil
 }
 
-// appPort shows or changes the port traffic goes to. The port is read from the Dockerfile's EXPOSE
-// once, when the app is created, and not again: a Dockerfile that later EXPOSEs another port moves
-// nothing. A new port applies from the next build (PORT, the start script and the route together).
+// appPort shows or changes the port traffic goes to. It starts as the Dockerfile's EXPOSE and
+// follows a changed EXPOSE unless the customer set a port of their own (api.dalang.io specs/04). A
+// new port applies from the next build (PORT, the start script and the route together).
 func appPort(args []string) error {
 	var rebuild bool
 	var timeout time.Duration
@@ -916,7 +916,7 @@ func printAppHelp() {
 %sCREATE FLAGS:%s
     --repo owner/name     the repository (required)
     --branch B            default: the repository's default branch
-    --port N              default: the Dockerfile's EXPOSE (read ONCE, now; see 'dalang app port')
+    --port N              default: the Dockerfile's EXPOSE (see 'dalang app port')
     --env KEY=VALUE       repeatable; change it later with 'dalang app env'.
     --name text           display name, default: the repository name
     --months 1|12         subscription period (default 1)
@@ -934,9 +934,10 @@ func printAppHelp() {
     Without --set/--unset it lists the variables (values hidden; --reveal shows them, --json always does).
 
 %sPORT:%s
-    The port is read from the Dockerfile's EXPOSE when the app is created and NOT read again. If you later
-    change EXPOSE (or set a PORT variable) the traffic still goes to the stored port: a build warns about it
-    in its log. Change it with 'dalang app port shop 8000 --rebuild'.
+    The port starts as the Dockerfile's EXPOSE and follows it when EXPOSE changes, as long as you have not
+    set a port of your own (a port that differs from EXPOSE is never replaced). A build warns in its log when
+    EXPOSE or a PORT variable disagrees with the port in use. Change it with 'dalang app port shop 8000 --rebuild';
+    a new port applies from the next build.
 
 %sREQUIREMENTS:%s
     - A file named Dockerfile in the root of the repository, with an Alpine-based image

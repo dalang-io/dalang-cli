@@ -218,6 +218,22 @@ Colors are automatically disabled when output is piped/redirected or when the
 - Ctrl+C sends to the remote VM; `~.` or `exit` is how you leave
 - Terminal is in raw mode for full interactivity
 
+## Skill for AI agents
+
+`skills/dalang-deploy/SKILL.md` teaches an LLM agent (Claude Code and other agents that read `SKILL.md` skills) to
+deploy and manage services on Dalang.io with this CLI: a GitHub repository with a Dockerfile (rebuilt on every push),
+containers, volumes and VPS, with safe defaults for money (`--yes`, `--max-price`) and machine-readable output (`--json`).
+
+```bash
+# Claude Code, for one project:
+mkdir -p .claude/skills && cp -r skills/dalang-deploy .claude/skills/
+# or for every project:
+mkdir -p ~/.claude/skills && cp -r skills/dalang-deploy ~/.claude/skills/
+```
+
+Any other agent: give it the contents of that file. `SKILL.md` in the repository root is the longer reference.
+The skill needs a CLI that has `dalang app` (`dalang app --help`).
+
 ## Updating
 
 ```bash

@@ -1,5 +1,7 @@
 # Dalang CLI - AI Skill Guide
 
+> Deploying with an AI agent? There is a ready-made, installable agent skill in [`skills/dalang-deploy`](skills/dalang-deploy/SKILL.md). This file is the longer reference.
+
 This document helps AI assistants understand and use the Dalang CLI tool effectively.
 
 _Verified against the CLI source and the api.dalang.io image map on 2026-09-22 (CLI **v1.21.x**)._
@@ -128,8 +130,8 @@ dalang app rebuild shop                            # build again without a push
 Requirements the CLI checks **before** it creates or charges anything: the repository is one your GitHub account
 can see, and its branch has a **Dockerfile in the repository root**; the port is the Dockerfile's `EXPOSE`
 (or `--port N`). Use an **Alpine-based image** (`FROM node:22-alpine`): a Debian/Ubuntu base builds but cannot
-start. The port is read from `EXPOSE` **once, at creation**; changing `EXPOSE` later does **not** move traffic (a build
-warns in its log). Change it with `dalang app port <name> 8000 --rebuild`. An app is **stateless** (files written in it are lost on each build) and its `--env` values are **fixed at
+start. The port starts as `EXPOSE` and follows a changed `EXPOSE` unless you set a port of your own (a build warns in its
+log when they disagree). Change it with `dalang app port <name> 8000 --rebuild`; it applies from the next build. An app is **stateless** (files written in it are lost on each build) and its `--env` values are **fixed at
 creation**: the API has no way to change them later (delete and recreate).
 
 ### Create and manage a container
