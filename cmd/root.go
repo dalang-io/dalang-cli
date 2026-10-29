@@ -210,6 +210,8 @@ func Execute() error {
 		return cmdApp(cmdArgs)
 	case "container", "containers":
 		return cmdContainer(cmdArgs)
+	case "volume", "volumes", "storage":
+		return cmdVolume(cmdArgs)
 	case "hosting":
 		return cmdHosting(cmdArgs)
 	case "shell":
@@ -290,6 +292,9 @@ func printHelp() {
 	fmt.Println("    " + colorCyan + "hosting accounts" + colorReset + "           List hosting accounts (OAuth, read-only)")
 	fmt.Println("    " + colorCyan + "service info <name>" + colorReset + "        Show detailed info about a service")
 	fmt.Println("    " + colorCyan + "service create" + colorReset + "             Create a new VPS")
+	fmt.Println("    " + colorCyan + "app ..." + colorReset + "                    Deploy and manage GitHub apps (list, create, rebuild, logs, ...)")
+	fmt.Println("    " + colorCyan + "container ..." + colorReset + "              Databases and ready-made apps from templates")
+	fmt.Println("    " + colorCyan + "volume ..." + colorReset + "                 Extra storage for a VPS")
 	fmt.Println()
 	fmt.Printf("  %sVM Operations%s\n", colorBold, colorReset)
 	fmt.Println("    " + colorCyan + "shell <name>" + colorReset + "               Open persistent shell to VM (reconnects to session)")
@@ -388,6 +393,8 @@ func cmdHelpFor(command string) error {
 		printAppHelp()
 	case "container", "containers":
 		printContainerHelp()
+	case "volume", "volumes", "storage":
+		printVolumeHelp()
 	case "hosting":
 		printHostingHelp()
 	case "shell":

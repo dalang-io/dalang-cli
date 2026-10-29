@@ -66,7 +66,7 @@ func payWithQuote(client *api.Client, p creditPayment) (*creditReceipt, error) {
 		return nil, fmt.Errorf("the price is %s, above --max-price %s: not paying", formatIDR(q.Gross), formatIDR(p.MaxGross))
 	}
 	if !q.Sufficient {
-		return nil, fmt.Errorf("not enough credits: need %s, have %s (short by %s). Top up with 'dalang credit topup'", formatIDR(q.Gross), formatIDR(q.Balance), formatIDR(q.Shortfall))
+		return nil, fmt.Errorf("not enough credits: need %s, have %s (short by %s). Top up with 'dalang credit add <amount>'", formatIDR(q.Gross), formatIDR(q.Balance), formatIDR(q.Shortfall))
 	}
 	if err := requireConfirmation(fmt.Sprintf("Pay %s from credits for: %s?", formatIDR(q.Gross), p.Description)); err != nil {
 		return nil, err
